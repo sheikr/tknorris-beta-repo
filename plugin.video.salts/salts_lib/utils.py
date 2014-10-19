@@ -11,6 +11,9 @@ import xbmcvfs
 import log_utils
 import sys
 import hashlib
+import urlparse
+import shutil
+import urllib
 from constants import *
 from scrapers import * # import all scrapers into this namespace
 from addon.common.addon import Addon
@@ -484,15 +487,26 @@ def make_day(date):
     today=datetime.date.today()
     day_diff = (date - today).days
     if day_diff == -1:
-        date='Yesterday'
+        date='YDA'
     elif day_diff == 0:
-        date='Today'
+        date='TDA'
     elif day_diff == 1:
-        date='Tomorrow'
+        date='TOM'
     elif day_diff > 1 and day_diff < 7:
-        date = date.strftime('%A')
+        date = date.strftime('%a')
 
     return date
+
+def make_time(utc_ts):
+    local_time = time.localtime(utc_ts)
+    if ADDON.get_setting('calendar_time')=='1':
+        time_format = '%H:%M'
+        time_str = time.strftime(time_format, local_time)
+    else:
+        time_format = '%I%p' if local_time.tm_min == 0 else '%I:%M%p'
+        time_str = time.strftime(time_format, local_time)
+        if time_str[0] == '0': time_str = time_str[1:]
+    return time_str
 
 def iso_2_utc(iso_ts):
     if not iso_ts or iso_ts is None: return 0
@@ -722,3 +736,63 @@ def format_time(seconds):
         return "%02d:%02d:%02d" % (hours, minutes, seconds)
     else:
         return "%02d:%02d" % (minutes, seconds)
+
+def download_media(url, path, file_name):
+    try:
+        import urllib2
+        request = urllib2.Request(url)
+        request.add_header('User-Agent', USER_AGENT)
+        request.add_unredirected_header('Host', request.get_host())
+        response = urllib2.urlopen(request)
+        
+        content_length = 0
+        if 'Content-Length' in response.info():
+            content_length = int(response.info()['Content-Length'])
+            
+        file_name = file_name.replace('.strm', get_extension(url, response))
+        full_path = os.path.join(path, file_name)
+        log_utils.log('Downloading: %s -> %s' % (url, full_path), xbmc.LOGDEBUG)
+        
+        file_desc = xbmcvfs.File(full_path, 'w')
+        total_len = 0
+        dialog = xbmcgui.DialogProgress()
+        dialog.create('Stream All The Sources', 'Downloading: %s...' % (file_name))
+        dialog.update(0)
+        while True:
+            data = response.read(CHUNK_SIZE)
+            if not data or dialog.iscanceled(): break
+            
+            total_len += len(data)
+            file_desc.write(data)
+            percent_progress = (total_len)*100/content_length if content_length>0 else 0
+            log_utils.log('Position : %s / %s = %s%%' % (total_len, content_length, percent_progress), xbmc.LOGDEBUG)
+            dialog.update(percent_progress)
+        else:
+            builtin = 'XBMC.Notification(%s,Download Complete: %s, 5000, %s)'
+            xbmc.executebuiltin(builtin % (ADDON.get_name(), file_name, ICON_PATH))
+            log_utils.log('Download Complete: %s -> %s' % (url, full_path), xbmc.LOGDEBUG)
+
+        file_desc.close()
+        dialog.close()
+    except Exception as e:
+        msg = 'Error (%s) during download: %s' % (str(e), file_name)
+        log_utils.log('Error (%s) during download: %s -> %s' % (str(e), url, file_name), xbmc.LOGERROR)
+        builtin = 'XBMC.Notification(%s,%s, 5000, %s)'
+        xbmc.executebuiltin(builtin % (ADDON.get_name(), msg, ICON_PATH))
+
+def get_extension(url, response):
+    filename = url2name(url)
+    if 'Content-Disposition' in response.info():
+        cd_list = response.info()['Content-Disposition'].split('filename=')
+        if len(cd_list)>1:
+            filename = cd_list[-1]
+            if filename[0] == '"' or filename[0] == "'":
+                filename = filename[1:-1]
+    elif response.url != url: 
+        filename = url2name(response.url)
+    ext=os.path.splitext(filename)[1]
+    if not ext: ext = DEFAULT_EXT
+    return ext
+    
+def url2name(url):
+    return os.path.basename(urllib.unquote(urlparse.urlsplit(url)[2]))
