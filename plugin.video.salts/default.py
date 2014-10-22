@@ -376,6 +376,8 @@ def browse_lists(section):
         menu_items.append(('Set as Favorites List', 'RunPlugin(%s)' % (_SALTS.build_plugin_url(queries))), )
         queries={'mode': MODES.SET_SUB_LIST, 'slug': user_list['slug'], 'section': section}
         menu_items.append(('Set as Subscription List', 'RunPlugin(%s)' % (_SALTS.build_plugin_url(queries))), )
+        queries={'mode': MODES.COPY_LIST, 'slug': COLLECTION_SLUG, 'section': section, 'target_slug': user_list['slug']}
+        menu_items.append(('Import from Collection', 'RunPlugin(%s)' % (_SALTS.build_plugin_url(queries))), )
         liz.addContextMenuItems(menu_items, replaceItems=True)
         
         xbmcplugin.addDirectoryItem(int(sys.argv[1]), liz_url, liz,isFolder=True,totalItems=totalItems)
@@ -1129,15 +1131,18 @@ def add_many_to_list(section, item, slug=None):
         response=trakt_api.add_to_list(slug, item)
     return response
     
-@url_dispatcher.register(MODES.COPY_LIST, ['section', 'slug', 'username'])
-def copy_list(section, slug, username):
-    _, items = trakt_api.show_list(slug, section, username)
+@url_dispatcher.register(MODES.COPY_LIST, ['section', 'slug'], ['username', 'target_slug'])
+def copy_list(section, slug, username=None, target_slug=None):
+    if slug == COLLECTION_SLUG:
+        items = trakt_api.get_collection(section)
+    else:
+        _, items = trakt_api.show_list(slug, section, username)
     copy_items=[]
     for item in items:
         query=utils.show_id(item)
         copy_item={'type': TRAKT_SECTIONS[section][:-1], query['id_type']: query['show_id']}
         copy_items.append(copy_item)
-    response=add_many_to_list(section, copy_items)
+    response=add_many_to_list(section, copy_items, target_slug)
     builtin = "XBMC.Notification(%s,List Copied: (A:%s/ E:%s/ S:%s), 5000, %s)" % (_SALTS.get_name(), response['inserted'], response['already_exist'], response['skipped'], ICON_PATH)
     xbmc.executebuiltin(builtin)
 
@@ -1182,13 +1187,15 @@ def toggle_url_exists(slug):
 @url_dispatcher.register(MODES.UPDATE_SUBS)
 def update_subscriptions():
     log_utils.log('Updating Subscriptions', xbmc.LOGDEBUG)
+    dialog = None
     if _SALTS.get_setting(MODES.UPDATE_SUBS+'-notify')=='true':
-        builtin = "XBMC.Notification(%s,Subscription Update Started, 2000, %s)" % (_SALTS.get_name(), ICON_PATH)
-        xbmc.executebuiltin(builtin)
+        dialog = xbmcgui.DialogProgressBG()
+        dialog.create('Stream All The Sources', 'Updating Subscriptions...')
+        dialog.update(0)
 
-    update_strms(SECTIONS.TV)
+    update_strms(SECTIONS.TV, dialog)
     if _SALTS.get_setting('include_movies') == 'true':
-        update_strms(SECTIONS.MOVIES)
+        update_strms(SECTIONS.MOVIES, dialog)
     if _SALTS.get_setting('library-update') == 'true':
         xbmc.executebuiltin('UpdateLibrary(video)')
     if _SALTS.get_setting('cleanup-subscriptions') == 'true':
@@ -1198,14 +1205,13 @@ def update_subscriptions():
     db_connection.set_setting('%s-last_run' % MODES.UPDATE_SUBS, now.strftime("%Y-%m-%d %H:%M:%S.%f"))
 
     if _SALTS.get_setting(MODES.UPDATE_SUBS+'-notify')=='true':
-        builtin = "XBMC.Notification(%s,Subscriptions Updated, 2000, %s)" % (_SALTS.get_name(), ICON_PATH)
-        xbmc.executebuiltin(builtin)
+        dialog.close()
         if _SALTS.get_setting('auto-'+MODES.UPDATE_SUBS)=='true':
             builtin = "XBMC.Notification(%s,Next Update in %0.1f hours,5000, %s)" % (_SALTS.get_name(), float(_SALTS.get_setting(MODES.UPDATE_SUBS+'-interval')), ICON_PATH)
             xbmc.executebuiltin(builtin)
     xbmc.executebuiltin("XBMC.Container.Refresh")
     
-def update_strms(section):
+def update_strms(section, dialog=None):
     section_params = utils.get_section_params(section)
     slug=_SALTS.get_setting('%s_sub_slug' % (section))
     if not slug:
@@ -1215,7 +1221,11 @@ def update_strms(section):
     else:
         _, items = trakt_api.show_list(slug, section)
     
-    for item in items:
+    length=len(items)
+    for i, item in enumerate(items):
+        if dialog:
+            percent_progress = i*100 / length
+            dialog.update(percent_progress, 'Stream All The Sources', 'Updating %s: %s (%s)' % (section, re.sub(' \(\d{4}\)$','',item['title']), item['year']))
         add_to_library(section_params['video_type'], item['title'], item['year'], trakt_api.get_slug(item['url']))
 
 @url_dispatcher.register(MODES.CLEAN_SUBS)

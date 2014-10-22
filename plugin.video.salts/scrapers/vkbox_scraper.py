@@ -104,10 +104,11 @@ class VKBox_Scraper(scraper.Scraper):
     
     def __get_json(self, video_type):
         url = urlparse.urljoin(self.base_url, ZIP_URL)
-        zip_data = self._http_get(url, cache_limit=.5)
+        zip_data = self._http_get(url, cache_limit=0)
         if zip_data:
-            with zipfile.ZipFile(StringIO.StringIO(zip_data)) as zip_file:
-                data = zip_file.read(JSON_FILES[video_type])
+            zip_file = zipfile.ZipFile(StringIO.StringIO(zip_data))
+            data = zip_file.read(JSON_FILES[video_type])
+            zip_file.close()
             return json.loads(data)
         else:
             return []
