@@ -496,8 +496,15 @@ def manage_subscriptions(section):
     slug=_SALTS.get_setting('%s_sub_slug' % (section))
     if slug:
         next_run = utils.get_next_run(MODES.UPDATE_SUBS)
-        liz = xbmcgui.ListItem(label='Update Subscriptions: (Next Run: [COLOR green]%s[/COLOR])' % (next_run.strftime("%Y-%m-%d %H:%M:%S.%f")),
-                               iconImage=utils.art('update_subscriptions.png'), thumbnailImage=utils.art('update_subscriptions.png'))
+        label = 'Update Subscriptions: (Next Run: [COLOR %s]%s[/COLOR])'
+        if _SALTS.get_setting('auto-'+MODES.UPDATE_SUBS) == 'true':
+            color = 'green'
+            run_str = next_run.strftime("%Y-%m-%d %I:%M:%S %p")
+        else:
+            color = 'red'
+            run_str = 'DISABLED'
+        label = label % (color, run_str)
+        liz = xbmcgui.ListItem(label=label, iconImage=utils.art('update_subscriptions.png'), thumbnailImage=utils.art('update_subscriptions.png'))
         liz.setProperty('fanart_image', utils.art('fanart.jpg'))
         liz_url = _SALTS.build_plugin_url({'mode': MODES.UPDATE_SUBS, 'section': section})
         xbmcplugin.addDirectoryItem(int(sys.argv[1]), liz_url, liz, isFolder=False)    
@@ -663,6 +670,7 @@ def get_sources(mode, video_type, title, year, slug, season='', episode='', ep_t
     if utils.P_MODE != P_MODES.NONE: q = utils.Queue()
     begin = time.time()
     fails={}
+    got_timeouts = False
     for cls in utils.relevant_scrapers(video_type):
         if utils.P_MODE == P_MODES.NONE:
             hosters += cls(max_timeout).get_sources(video)
@@ -691,6 +699,7 @@ def get_sources(mode, video_type, title, year, slug, season='', episode='', ep_t
             except utils.Empty:
                 log_utils.log('Get Sources Process Timeout', xbmc.LOGWARNING)
                 utils.record_timeouts(fails)
+                got_timeouts=True
                 break
             
             if max_results> 0 and len(hosters) >= max_results:
@@ -698,13 +707,14 @@ def get_sources(mode, video_type, title, year, slug, season='', episode='', ep_t
                 break
 
         else:
+            got_timeouts = False
             log_utils.log('All source results received')
         
     total = len(workers)
     timeouts = len(fails)
     workers=utils.reap_workers(workers)
     try:
-        timeout_msg = 'Scraper Timeouts: %s/%s' % (timeouts, total) if timeouts else ''
+        timeout_msg = 'Scraper Timeouts: %s/%s' % (timeouts, total) if got_timeouts and timeouts else ''
         if not hosters:
             log_utils.log('No Sources found for: |%s|' % (video))
             msg = ' (%s)' % timeout_msg if timeout_msg else ''
@@ -1531,8 +1541,11 @@ def make_episode_item(show, episode, fanart, show_subs=True, menu_items=None):
     if 'first_aired_iso' in episode: utc_air_time = utils.iso_2_utc(episode['first_aired_iso'])
     else: utc_air_time = utils.fa_2_utc(episode['first_aired'])
     
+    try: time_str = time.asctime(time.localtime(utc_air_time))
+    except: time_str = 'Unavailable'
+    
     log_utils.log('First Aired: Title: %s S/E: %s/%s fa: %s, utc: %s, local: %s' %
-                  (show['title'], episode['season'], episode_num, episode['first_aired'], utc_air_time, time.asctime(time.localtime(utc_air_time))), xbmc.LOGDEBUG)
+                  (show['title'], episode['season'], episode_num, episode['first_aired'], utc_air_time, time_str), xbmc.LOGDEBUG)
     if _SALTS.get_setting('unaired_indicator')=='true' and (not episode['first_aired'] or utc_air_time>time.time()):
         label = '[I][COLOR chocolate]%s[/COLOR][/I]' % (label)
     if show_subs and utils.srt_indicators_enabled():
