@@ -30,6 +30,7 @@ from salts_lib.constants import QUALITIES
 from salts_lib.constants import USER_AGENT
 
 BASE_URL = 'http://hdlord.com'
+QUALITY_MAP = {'mobile': QUALITIES.LOW, 'lowest': QUALITIES.LOW, 'low': QUALITIES.MEDIUM, 'sd': QUALITIES.HIGH, 'hd': QUALITIES.HD}
 
 class HDLord_Scraper(scraper.Scraper):
     base_url=BASE_URL
@@ -50,7 +51,9 @@ class HDLord_Scraper(scraper.Scraper):
         return link
     
     def format_source_label(self, item):
-        label='[%s] %s (%s views) ' % (item['quality'], item['host'], item['views'])
+        label='[%s]' % (item['quality'])
+        if 'res' in item: label = '%s (%s)' % (label, item['res'])
+        label = '%s %s (%s views)' % (label, item['host'], item['views'])
         return label
     
     def get_sources(self, video):
@@ -70,56 +73,83 @@ class HDLord_Scraper(scraper.Scraper):
                 proxy_link = match.group(1)
                 proxy_link = proxy_link.split('*', 1)[-1]
                 proxy_link = proxy_link.strip()
-                print '|%s|' % proxy_link
                 stream_url = GKDecrypter.decrypter(198,128).decrypt(proxy_link, base64.urlsafe_b64decode('dWhhVnA4R3Z5a2N5MWJGUWFmQlI='),'ECB').split('\0')[0]
-                print stream_url
                 host = urlparse.urlsplit(stream_url).hostname
                 
                 if host and stream_url not in seen_urls:
                     if 'odnoklassniki.ru' in stream_url:
                         sources = self.parse_format(stream_url)
+                        host = 'hdlord.com'
+                        direct = True
+                    elif 'google.com' in stream_url:
+                        sources = self.parse_format2(stream_url)
+                        host = 'hdlord.com'
+                        direct = True
                     else:
                         sources = [{'url': stream_url, 'quality': QUALITIES.HD}]
+                        direct = False
                         
                     for source in sources:
-                        hoster = {'multi-part': False, 'url': source['url'], 'class': self, 'quality': source['quality'], 'host': host, 'rating': None, 'views': views, 'direct': True}
+                        hoster = {'multi-part': False, 'class': self, 'host': host, 'rating': None, 'views': views, 'direct': direct}
+                        hoster.update(source)
                         hosters.append(hoster)
                 seen_urls.append(stream_url)
          
         return hosters
 
     def parse_format(self, host_url):
-        html = self._http_get(host_url, cache_limit=0)
-        match = re.search(r'metadataEmbedded(.*?)wmode', html)
+        html = self._http_get(host_url, cache_limit=.5)
+        html = re.sub('\s','', html)
+        match = re.search(r'videos\\":\[(.*?)\]', html)
         sources = []
         if match:
             html = match.group(1)
-            html = html.replace('\\\\', '\\')
             html = html.replace('\\"', '"')
+            html = html.replace('\\\\u0026', '&')
+            html = html.replace('\\\\u003d', '=')
+            html = html.replace('\\\\u003c', '<')
+            html = html.replace('\\\\u003e', '>')
+            for match in re.finditer('"name":"([^"]+)","url":"([^"]+)', html):
+                quality, url = match.groups()
+                url = url + '&start=0|User-Agent=%s' % (USER_AGENT)
+                source = {'url': url, 'quality': QUALITY_MAP.get(quality, QUALITIES.MEDIUM)}
+                sources.append(source)
+        return sources
+    
+    def parse_format2(self, host_url):
+        html = self._http_get(host_url, cache_limit=.5)
+        html = re.sub('\s','', html)
+        match = re.search(r'(\[\s*\[\d+,\d+,\d+.*?\]\s*\])', html)
+        sources = []
+        if match:
+            html = match.group(1)
             html = html.replace('\\"', '"')
             html = html.replace('\\u0026', '&')
             html = html.replace('\\u003d', '=')
             html = html.replace('\\u003c', '<')
             html = html.replace('\\u003e', '>')
-            html = html.replace('&amp;', '&')
-            for match in re.finditer('\s+width="([^"]+).*?<BaseURL>([^<]+)', html):
+            for match in re.finditer('(\d+),\d+,"(https://redirector[^"]+)', html):
                 width, url = match.groups()
-                url = url + '&bytes=0-2097152|User-Agent=%s' % (USER_AGENT)
-                source = {'url': url, 'quality': self.__get_quality(width)}
+                source = {'url': url}
+                source.update(self.__set_quality(width))
                 sources.append(source)
         return sources
-    
-    def __get_quality(self, width):
+     
+    def __set_quality(self, width):
         width=int(width)
-        if width>=1280:
+        if width>=1920:
             quality=QUALITIES.HD
+            res='1080p'
+        elif width>=1280:
+            quality=QUALITIES.HD
+            res = '720p'
         elif width>640:
             quality=QUALITIES.HIGH
-        elif width>255:
-            quality=QUALITIES.MEDIUM
+            res='480p'
         else:
-            quality=QUALITIES.LOW
-        return quality
+            quality=QUALITIES.MEDIUM
+            res='360p'
+        return {'quality': quality, 'res': res}
     
     def get_url(self, video):
         return super(HDLord_Scraper, self)._default_get_url(video)
