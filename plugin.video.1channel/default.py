@@ -120,8 +120,6 @@ def get_sources(url, title, year='', img='', imdbnum='', dialog=None, respect_au
     utils.log('Getting sources from: %s' % url)
     primewire_url = url
     
-    dbid=xbmc.getInfoLabel('ListItem.DBID')
-    
     resume = False
     if db_connection.bookmark_exists(url):
         resume = get_resume_choice(url)
@@ -150,6 +148,8 @@ def get_sources(url, title, year='', img='', imdbnum='', dialog=None, respect_au
     if not hosters:
         _1CH.show_ok_dialog(['No sources were found for this item'], title='PrimeWire')
         return
+        
+    dbid=get_dbid(video_type, title, season, episode, year)
 
     # auto play is on
     if respect_auto and _1CH.get_setting('auto-play')=='true':
@@ -171,7 +171,59 @@ def get_sources(url, title, year='', img='', imdbnum='', dialog=None, respect_au
                 
             else:
                 play_unfiltered_dir(hosters, title, img, year, imdbnum, video_type, season, episode, primewire_url, resume)
-
+    
+def get_dbid(video_type, title, season='', episode='', year=''):
+    dbid=0
+    filter=''
+    #variable used to match title with closest len, if there is more than one match, the one with the closest title length is the winner,
+    #The Middle and Malcolm in the Middle in the same library would still match the corret title. Starts at high value and lowers 
+    max_title_len_diff=1000
+    titleComp2=re.sub('[^a-zA-Z0-9]+','',title).lower()
+    #if it's a movie check if the titles match in the library, then pull the movieid
+    if video_type == 'movie':
+        if year: filter = '"filter": {"field": "year", "operator": "is", "value": "%s"},' % year
+        json_string = '{"jsonrpc": "2.0", "id": 1, "method": "VideoLibrary.GetMovies", "params": {%s "properties": ["title"], "limits": {"end": 10000}}}' % filter
+        result_key="movies"
+        id_key="movieid"
+        title_key="title"
+    #if it'a a tvshow episode filter out all tvshows which contain said season and episode, then match tvshow title
+    if video_type == 'episode':
+        filter = '"filter": {"and":['
+        if year: filter += '{"field": "year", "operator": "is", "value": "%s"},' % year
+        filter+='{"field": "season", "operator": "is", "value": "%s"},' % season
+        filter+='{"field": "episode", "operator": "is", "value": "%s"}]},' % episode
+        json_string = '{"jsonrpc": "2.0", "id": 1, "method": "VideoLibrary.GetEpisodes", "params": {%s "properties": ["showtitle"], "limits": {"end": 10000}}}' % (filter)
+        result_key="episodes"
+        id_key="episodeid"
+        title_key="showtitle"
+    result=xbmc.executeJSONRPC(json_string)
+    resultObj=json.loads(result)
+    if not ('result' in resultObj and result_key in resultObj['result']): return None
+    for item in resultObj['result'][result_key]:
+        #converts titles to only alpha numeric, then compares smallest title to largest title, for example
+        #'Adventure Time' would match to 'Adventure tIME with FiNn and Jake_ (en) (4214)'
+        titleComp1=re.sub('[^a-zA-Z0-9]+','',item[title_key]).lower()
+        found_match=0
+        if len(titleComp1)>len(titleComp2):
+            if titleComp2 in titleComp1: found_match=1
+        else:
+            if titleComp1 in titleComp2: found_match=1
+        if found_match:
+            title_len_diff=abs(len(titleComp1)-len(titleComp2))
+            if title_len_diff<=max_title_len_diff:
+                max_title_len_diff=title_len_diff
+                if video_type == 'movie':
+                    dbid=item[id_key]
+                    utils.log('successfully matched dbid to movieid %s' % (dbid), xbmc.LOGDEBUG)
+                if video_type == 'episode':
+                    dbid=item[id_key]
+                    utils.log('successfully matched dbid to episodeid %s' % (dbid), xbmc.LOGDEBUG)                  
+    if dbid:
+        return dbid
+    else:
+        utils.log('Failed to recover dbid, type: %s, title: %s, season: %s, episode: %s' % (video_type, title, season, episode), xbmc.LOGDEBUG)
+        return None
+        
 def play_filtered_dialog(hosters, title, img, year, imdbnum, video_type, season, episode, primewire_url, resume, dbid):
     sources=[]
     for item in hosters:
@@ -460,7 +512,7 @@ def GetSearchQuery(section, next_mode):
             search_text = keyboard.getText()
             if not paginate and not search_text:
                 _1CH.show_ok_dialog(['Blank searches are not allowed unless [B]Paginate Search Results[/B] is enabled.'], title='PrimeWire')
-                continue
+                return
             else:
                 break
         else:
@@ -494,11 +546,11 @@ def GetSearchQueryAdvanced(section):
     except:
         BrowseListMenu(section)
 
-@pw_dispatcher.register(MODES.SEARCH, ['mode', 'section', 'query'], ['page'])
-@pw_dispatcher.register(MODES.SEARCH_DESC, ['mode', 'section', 'query'], ['page'])
-@pw_dispatcher.register(MODES.SEARCH_ADV, ['mode', 'section', 'query'], ['page'])
-@pw_dispatcher.register(MODES.REMOTE_SEARCH, ['section', 'query'])
-def Search(mode, section, query, page=None):
+@pw_dispatcher.register(MODES.SEARCH, ['mode', 'section'], ['query', 'page'])
+@pw_dispatcher.register(MODES.SEARCH_DESC, ['mode', 'section'], ['query', 'page'])
+@pw_dispatcher.register(MODES.SEARCH_ADV, ['mode', 'section'], ['query', 'page'])
+@pw_dispatcher.register(MODES.REMOTE_SEARCH, ['section'], ['query'])
+def Search(mode, section, query='', page=None):
     section_params = get_section_params(section)
     paginate=(_1CH.get_setting('paginate-search')=='true' and _1CH.get_setting('paginate')=='true')
     
@@ -758,7 +810,7 @@ def BrowseAlphabetMenu(section=None):
 def BrowseByGenreMenu(section=None): #2000
     utils.log('Browse by genres screen')
     for genre in pw_scraper.get_genres():
-        _1CH.add_directory({'mode': MODES.FILTER_RESULTS, 'section': section, 'sort': '', 'genre': genre},
+        _1CH.add_directory({'mode': MODES.FILTER_RESULTS, 'section': section, 'sort': 'date', 'genre': genre},
                            {'title': genre}, img=art(genre.lower() + '.png'))
     xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
@@ -1827,13 +1879,11 @@ def install_local_metapack():
     source = dialog.browse(1, 'Metapack', 'files', '.zip', False, False)
     metapacks.install_local_zip(source)
         
-@pw_dispatcher.register(MODES.MOVIE_UPDATE, ['section', 'genre', 'letter', 'sort', 'page'])
-def movie_update(section, genre, letter, sort, page):
+@pw_dispatcher.register(MODES.MOVIE_UPDATE)
+def movie_update():
     builtin = "XBMC.Notification(PrimeWire,Updating. Please wait...,5000,%s)" % xbmcaddon.Addon().getAddonInfo('icon')
     xbmc.executebuiltin(builtin)
-    sort = update_movie_cat()
-    section = 'movies'
-    GetFilteredResults(section, genre, letter, sort, page, paginate=True)
+    GetFilteredResults(section='movies', sort=update_movie_cat(), paginate=True)
 
 @pw_dispatcher.register(MODES.SELECT_SOURCES, ['url', 'title'], ['year', 'imdbnum', 'img'])
 def select_sources(url, title, year='', img='', imdbnum=''):
