@@ -211,9 +211,6 @@ class DB_Connection():
             if age < limit:
                 html=rows[0][1]
 
-        if not isinstance(html,unicode):
-            html = unicode(html, 'windows-1252', 'ignore')
-      
         return html
     
     def cache_season(self, season_num,season_html):
@@ -300,7 +297,7 @@ class DB_Connection():
 
         utils.log('Building PrimeWire Database', xbmc.LOGDEBUG)
         if self.db_type == DB_TYPES.MYSQL:
-            self.__execute('CREATE TABLE IF NOT EXISTS seasons (season INTEGER UNIQUE, contents TEXT)')
+            self.__execute('CREATE TABLE IF NOT EXISTS seasons (season INTEGER UNIQUE, contents MEDIUMBLOB)')
             self.__execute('CREATE TABLE IF NOT EXISTS favorites (type VARCHAR(10), name TEXT, url VARCHAR(255) UNIQUE, year VARCHAR(10))')
             self.__execute('CREATE TABLE IF NOT EXISTS subscriptions (url VARCHAR(255) UNIQUE, title TEXT, img TEXT, year TEXT, imdbnum TEXT, days VARCHAR(7))')
             self.__execute('CREATE TABLE IF NOT EXISTS url_cache (url VARCHAR(255) NOT NULL, response MEDIUMBLOB, timestamp TEXT, PRIMARY KEY(url))')
