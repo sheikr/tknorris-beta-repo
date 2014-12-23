@@ -19,6 +19,7 @@ import utils
 import time
 import urllib2
 import urllib
+import urlparse
 import re
 import HTMLParser
 import xbmc
@@ -114,7 +115,7 @@ class PW_Scraper():
     def __set_fav_result(self, match):
         fav = {}
         link, img, year, title = match
-        fav['url'] = link.replace('/tv-', '/watch-', 1) # hack the returned favorite url so that it matches all the other pages
+        fav['url'] = self.__fix_url(link)
         fav['img'] = img
         fav['year'] = year
         fav['title'] = title
@@ -148,7 +149,7 @@ class PW_Scraper():
             result = {}
             link, img, year, title = match
             if not year or len(year) != 4: year = '' 
-            result['url']=link.replace('/tv-', '/watch-', 1) # hack the returned watched url so that it matches all the other pages
+            result['url']=self.__fix_url(link)
             result['img']=img
             result['year']=year
             result['title']=title
@@ -206,7 +207,7 @@ class PW_Scraper():
     def __set_search_result(self, match):
             result = {}
             link, title, year, img = match
-            result['url'] = link
+            result['url'] = self.__fix_url(link)
             result['title'] = title
             result['year'] = year
             result['img'] = img
@@ -295,8 +296,7 @@ class PW_Scraper():
         result={}
         img, url, title, year = match
         result['img']=img
-        result['url']='/'+url
-        result['url'] = result['url'].replace('/tv-', '/watch-', 1) # force tv urls to be consistent w/ movies
+        result['url'] = self.__fix_url('/' + url)
         result['title']=title
         result['year']=year
         if url.startswith('tv-'):
@@ -333,7 +333,7 @@ class PW_Scraper():
     def __set_filtered_result(self, match):
         result = {}
         link, title, year, img = match
-        result['url'] = link
+        result['url'] = self.__fix_url(link)
         result['img'] = img
         result['year'] = year
         result['title'] = title
@@ -410,6 +410,8 @@ class PW_Scraper():
             for source in re.finditer(item_pattern, container.group(1), re.DOTALL):
                 qual, url, host, parts, views = source.groups()
          
+                if host == 'ZnJhbWVndGZv': continue # filter out promo hosts
+                
                 item = {'host': host.decode('base-64'), 'url': url.decode('base-64')}
                 item['verified'] = source.group(0).find('star.gif') > -1
                 item['quality'] = qual.upper()
@@ -482,6 +484,11 @@ class PW_Scraper():
                 season_label = r.group(1)
                 yield (season_label, season_html)
     
+    def __fix_url(self, url):
+        url = url.replace('/tv-', '/watch-', 1) # force tv urls to be consistent w/ movies
+        url = url.replace('-online-free', '') # strip off the -online-free at the end to make all urls match
+        return url
+    
     def __get_url(self,url, headers={}, login=False):
         before = time.time()
         html = self.__http_get_with_retry_1(url, headers)  
@@ -517,7 +524,7 @@ class PW_Scraper():
         utils.log('No cached url found for: %s' % url, xbmc.LOGDEBUG)
         req = urllib2.Request(url)
     
-        host = re.sub('http://', '', self.base_url)
+        host = urlparse.urlparse(self.base_url).hostname
         req.add_header('User-Agent', USER_AGENT)
         req.add_unredirected_header('Host', host)
         req.add_unredirected_header('Referer', self.base_url)
@@ -531,7 +538,7 @@ class PW_Scraper():
                 captchaimgurl = 'http://' + host + '/CaptchaSecurityImages.php'
                 captcha_save_path = xbmc.translatePath('special://userdata/addon_data/plugin.video.1channel/CaptchaSecurityImage.jpg')
                 req = urllib2.Request(captchaimgurl)
-                host = re.sub('http://', '', self.base_url)
+                host = urlparse.urlparse(self.base_url).hostname
                 req.add_header('User-Agent', USER_AGENT)
                 req.add_header('Host', host)
                 req.add_header('Referer', self.base_url)
@@ -560,7 +567,7 @@ class PW_Scraper():
                     data = urllib.urlencode(data)
                     roboturl = 'http://' + host + '/are_you_a_robot.php'
                     req = urllib2.Request(roboturl)
-                    host = re.sub('http://', '', self.base_url)
+                    host = urlparse.urlparse(self.base_url).hostname
                     req.add_header('User-Agent', USER_AGENT)
                     req.add_header('Host', host)
                     req.add_header('Referer', self.base_url)
@@ -591,7 +598,7 @@ class PW_Scraper():
         net = Net()
         cookiejar = _1CH.get_profile()
         cookiejar = os.path.join(cookiejar, 'cookies')
-        host = re.sub('http://', '', self.base_url)
+        host = urlparse.urlparse(self.base_url).hostname
         headers = {'Referer': redirect, 'Origin': self.base_url, 'Host': host, 'User-Agent': USER_AGENT}
         form_data = {'username': self.username, 'password': self.password, 'remember': 'on', 'login_submit': 'Login'}
         html = net.http_POST(url, headers=headers, form_data=form_data).content
