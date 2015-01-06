@@ -1,3 +1,6 @@
+[B]Version 0.0.4[/B]
+Added Firestorm theme
+
 [B]Version 0.0.2[/B]
 Added icons for all the new directories (Thanks to Azad and Marquerite!)
 
