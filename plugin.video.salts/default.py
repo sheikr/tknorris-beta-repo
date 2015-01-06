@@ -184,8 +184,7 @@ def force_refresh(refresh_mode, section=None, slug=None, username=None):
     if refresh_mode == MODES.SHOW_COLLECTION:
         trakt_api.get_collection(section, cached=False)
     elif refresh_mode == MODES.SHOW_PROGRESS:
-        trakt_api.get_progress(cached=False)
-        trakt_api.get_progress(full=False, cached=False)
+        get_progress(cache_override = True)
     elif refresh_mode == MODES.MY_CAL:
         trakt_api.get_my_calendar(start_date, cached=False)
     elif refresh_mode == MODES.CAL:
@@ -308,23 +307,23 @@ def toggle_scraper(name):
     _SALTS.set_setting('%s-enable' % (name), setting)
     xbmc.executebuiltin("XBMC.Container.Refresh")
     
-@url_dispatcher.register(MODES.TRENDING, ['section'])
-def browse_trending(section):
-    list_data = trakt_api.get_trending(section)
-    make_dir_from_list(section, list_data)
+@url_dispatcher.register(MODES.TRENDING, ['section'], ['page'])
+def browse_trending(section, page = 1):
+    list_data = trakt_api.get_trending(section, page)
+    make_dir_from_list(section, list_data, query = {'mode': MODES.TRENDING, 'section': section}, page = page)
 
-@url_dispatcher.register(MODES.POPULAR, ['section'])
-def browse_popular(section):
-    list_data = trakt_api.get_popular(section)
-    make_dir_from_list(section, list_data)
+@url_dispatcher.register(MODES.POPULAR, ['section'], ['page'])
+def browse_popular(section, page = 1):
+    list_data = trakt_api.get_popular(section, page)
+    make_dir_from_list(section, list_data, query = {'mode': MODES.POPULAR, 'section': section}, page = page)
 
-@url_dispatcher.register(MODES.RECENT, ['section'])
-def browse_recent(section):
+@url_dispatcher.register(MODES.RECENT, ['section'], ['page'])
+def browse_recent(section, page = 1):
     now = datetime.datetime.now()
     start_date = now - datetime.timedelta(days=7)
     start_date = datetime.datetime.strftime(start_date,'%Y-%m-%d')
-    list_data = trakt_api.get_recent(section, start_date)
-    make_dir_from_list(section, list_data)
+    list_data = trakt_api.get_recent(section, start_date, page)
+    make_dir_from_list(section, list_data, query = {'mode': MODES.RECENT, 'section': section}, page = page)
 
 @url_dispatcher.register(MODES.RECOMMEND, ['section'])
 def browse_recommendations(section):
@@ -500,14 +499,23 @@ def show_watchlist(section):
 @url_dispatcher.register(MODES.SHOW_COLLECTION, ['section'])
 def show_collection(section):
     items = trakt_api.get_collection(section, cached=_SALTS.get_setting('cache_collection')=='true')
+    sort_key = int(_SALTS.get_setting('sort_collection'))
+    if sort_key == 1:
+        items.reverse()
+    elif sort_key > 0:
+        items.sort(key=lambda x:x[['title', 'year'][sort_key - 2]])
     make_dir_from_list(section, items, COLLECTION_SLUG)
     
-@url_dispatcher.register(MODES.SHOW_PROGRESS)
-def show_progress():
-    watched_list = trakt_api.get_watched(SECTIONS.TV, full=True, cached=_SALTS.get_setting('cache_watched')=='true')
+def get_progress(cache_override=False):
+    cached = _SALTS.get_setting('cache_watched') =='true' and not cache_override
+    max_progress = int(_SALTS.get_setting('progress_size'))
+    watched_list = trakt_api.get_watched(SECTIONS.TV, full=True, cached = cached)
     episodes = []
-    for watched in watched_list:
-        progress = trakt_api.get_show_progress(watched['show']['ids']['slug'], full=True, cached=_SALTS.get_setting('cache_watched')=='true')
+    for i, watched in enumerate(watched_list):
+        if i != 0 and i >= max_progress:
+            break
+        
+        progress = trakt_api.get_show_progress(watched['show']['ids']['slug'], full=True, cached = cached)
         if 'next_episode' in progress and progress['next_episode']:
             episode = {'show': watched['show'], 'episode': progress['next_episode']}
             episode['last_watched_at']=watched['last_watched_at']
@@ -515,9 +523,11 @@ def show_progress():
             episode['completed']=progress['completed']
             episodes.append(episode)
 
-    episodes = utils.sort_progress(episodes, sort_order=SORT_MAP[int(_SALTS.get_setting('sort_progress'))])
+    return utils.sort_progress(episodes, sort_order=SORT_MAP[int(_SALTS.get_setting('sort_progress'))])
     
-    for episode in episodes:
+@url_dispatcher.register(MODES.SHOW_PROGRESS)
+def show_progress():
+    for episode in get_progress():
         log_utils.log('Episode: Sort Keys: Tile: |%s| Last Watched: |%s| Percent: |%s%%| Completed: |%s|' % (episode['show']['title'], episode['last_watched_at'], episode['percent_completed'], episode['completed']))
         first_aired_utc = utils.iso_2_utc(episode['episode']['first_aired'])
         if _SALTS.get_setting('show_unaired_next')=='true' or first_aired_utc <=time.time():
@@ -665,10 +675,10 @@ def delete_search(search_id):
     db_connection.delete_search(search_id)
     xbmc.executebuiltin("XBMC.Container.Refresh")
 
-@url_dispatcher.register(MODES.SEARCH_RESULTS, ['section', 'query'])
-def search_results(section, query):
-    results = trakt_api.search(section, query)
-    make_dir_from_list(section, results)
+@url_dispatcher.register(MODES.SEARCH_RESULTS, ['section', 'query'], ['page'])
+def search_results(section, query, page = 1):
+    results = trakt_api.search(section, query, page)
+    make_dir_from_list(section, results, query = {'mode': MODES.SEARCH_RESULTS, 'section': section, 'query': query}, page = page)
 
 @url_dispatcher.register(MODES.SEASONS, ['slug', 'fanart'])
 def browse_seasons(slug, fanart):
@@ -835,7 +845,6 @@ def resolve_source(mode, class_url, video_type, slug, class_name, season='', epi
 
 @url_dispatcher.register(MODES.PLAY_TRAILER,['stream_url'])
 def play_trailer(stream_url):
-    print stream_url
     xbmc.Player().play(stream_url)
 
 def download_subtitles(language, title, year, season, episode):
@@ -1239,7 +1248,7 @@ def toggle_title(slug):
 def toggle_watched(section, id_type, show_id, watched=True, season='', episode=''):
     log_utils.log('In Watched: |%s|%s|%s|%s|%s|%s|' % (section, id_type, show_id, season, episode, watched), xbmc.LOGDEBUG)
     item = {id_type: show_id}
-    print trakt_api.set_watched(section, item, season, episode, watched)
+    trakt_api.set_watched(section, item, season, episode, watched)
     w_str='Watched' if watched else 'Unwatched'
     builtin = "XBMC.Notification(%s,Marked as %s,5000,%s)" % (_SALTS.get_name(), w_str, ICON_PATH)
     xbmc.executebuiltin(builtin)
@@ -1479,7 +1488,7 @@ def show_pickable_list(slug, pick_label, pick_mode, section):
     else:
         show_list(section, slug)
 
-def make_dir_from_list(section, list_data, slug=None):
+def make_dir_from_list(section, list_data, slug=None, query = None, page = None):
     section_params=utils.get_section_params(section)
     totalItems=len(list_data)
     
@@ -1532,6 +1541,12 @@ def make_dir_from_list(section, list_data, slug=None):
         liz, liz_url =make_item(section_params, show, menu_items)
         
         xbmcplugin.addDirectoryItem(int(sys.argv[1]), liz_url, liz, isFolder=section_params['folder'], totalItems=totalItems)
+
+    if query and page and totalItems>=int(_SALTS.get_setting('list_size')):
+        meta = {'title': 'Next Page >>'}
+        query['page']=int(page) + 1
+        _SALTS.add_directory(query, meta, img=utils.art('nextpage.png'), fanart=utils.art('fanart.jpg'), is_folder=True)
+
     utils.set_view(section_params['content_type'], False)
     xbmcplugin.endOfDirectory(int(sys.argv[1]))
 

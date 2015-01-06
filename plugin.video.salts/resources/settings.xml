@@ -4,6 +4,7 @@
 		<setting id="parallel_mode" type="enum" label="Parallel Mode" values="Threads|Processes|None" default="0"/>
 		<setting id="calendar-day" type="slider" label="Calendar Start Day (0=Today)" default="0" range="-7,7" option="int"/>
 		<setting id="calendar_time" type="enum" label="Show air time on calendars" default="0" values="Off|24 Hour|12 Hour"/>
+	    <setting id="sort_collection" type="enum" label="My Collection Sort Order" values="Previously Collected|Recently Collected|Title|Year" default="0"/>
 	    <setting id="sort_progress" type="enum" label="My Next Episodes Sort Order" values="Activity|Title|Most Completed|Least Completed|Recently Aired|Previously Aired" default="0"/>
 	    <setting id="show_unaired_next" type="bool" label="Show unaired episodes in My Next Episodes" default="false"/>
 		<setting id="show_season0" type="bool" label="Show Season 0 in Seasons View" default="true"/>
@@ -43,7 +44,8 @@
 		<setting id="password" type="text" label="Trakt Password" default="" option="hidden"/>
 	    <setting id="use_https" type="bool" label="Use HTTPS" default="false"/>
 		<setting id="trakt_timeout" type="slider" label="Trakt Timeout (seconds) (0=No Limit)" default="30" range="0,120" option="int"/>
-		<setting id="list_size" type="slider" label="Trakt List Size" default="30" range="1,100" option="int"/>
+		<setting id="list_size" type="slider" label="Trakt Page Size" default="30" range="1,100" option="int"/>
+		<setting id="progress_size" type="slider" label="Maximum Progress Size (0=No Limit)" default="25" range="0,200" option="int"/>
 		<setting id="trakt_bookmark" type="bool" label="Use Trakt Bookmarks" default="false"/>
 		<setting id="cache_watched" type="bool" label="Cache watched status" default="true"/>
 		<setting id="cache_collection" type="bool" label="Cache Collection" default="true"/>
@@ -256,12 +258,6 @@
          <setting id="OneClickWatch_check" type="number" default="0" visible="false"/>
          <setting id="OneClickWatch-filter" type="slider" range="0,180" option="int" label="     Filter results older than (0=No Filter) (days)" default="30" visible="eq(-6,true)"/>
          <setting id="OneClickWatch-select" type="enum" label="     Automatically Select (Movies only)" values="Most Recent|Highest Quality" default="0" visible="eq(-7,true)"/>
-         <setting id="WatchMovies-enable" type="bool" label="WatchMovies Enabled" default="true" visible="true"/>
-         <setting id="WatchMovies-base_url" type="text" label="     Base Url" default="http://watchmovies.to" visible="eq(-1,true)"/>
-         <setting id="WatchMovies-sub_check" type="bool" label="     Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
-         <setting id="WatchMovies_try" type="number" default="0" visible="false"/>
-         <setting id="WatchMovies_fail" type="number" default="0" visible="false"/>
-         <setting id="WatchMovies_check" type="number" default="0" visible="false"/>
          <setting id="iStreamHD-enable" type="bool" label="iStreamHD Enabled" default="true" visible="true"/>
          <setting id="iStreamHD-base_url" type="text" label="     Base Url" default="http://istreamhd.org" visible="eq(-1,true)"/>
          <setting id="iStreamHD-sub_check" type="bool" label="     Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
@@ -311,33 +307,21 @@
          <setting id="DirectDownload.tv_check" type="number" default="0" visible="false"/>
          <setting id="DirectDownload.tv-username" type="text" label="     Username" default="" visible="eq(-6,true)"/>
          <setting id="DirectDownload.tv-password" type="text" label="     Password" option="hidden" default="" visible="eq(-7,true)"/>
-    </category>
-
-	<category label="Scrapers 3">
-         <setting id="WatchYourFlix-enable" type="bool" label="WatchYourFlix Enabled" default="true" visible="true"/>
-         <setting id="WatchYourFlix-base_url" type="text" label="     Base Url" default="http://watchyourflix.com" visible="eq(-1,true)"/>
-         <setting id="WatchYourFlix-sub_check" type="bool" label="     Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
-         <setting id="WatchYourFlix_try" type="number" default="0" visible="false"/>
-         <setting id="WatchYourFlix_fail" type="number" default="0" visible="false"/>
-         <setting id="WatchYourFlix_check" type="number" default="0" visible="false"/>
          <setting id="movietv.to-enable" type="bool" label="movietv.to Enabled" default="true" visible="true"/>
          <setting id="movietv.to-base_url" type="text" label="     Base Url" default="http://movietv.to" visible="eq(-1,true)"/>
          <setting id="movietv.to-sub_check" type="bool" label="     Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
          <setting id="movietv.to_try" type="number" default="0" visible="false"/>
          <setting id="movietv.to_fail" type="number" default="0" visible="false"/>
          <setting id="movietv.to_check" type="number" default="0" visible="false"/>
+    </category>
+
+	<category label="Scrapers 3">
          <setting id="MoviesOnline7-enable" type="bool" label="MoviesOnline7 Enabled" default="true" visible="true"/>
          <setting id="MoviesOnline7-base_url" type="text" label="     Base Url" default="http://moviesonline7.co" visible="eq(-1,true)"/>
          <setting id="MoviesOnline7-sub_check" type="bool" label="     Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
          <setting id="MoviesOnline7_try" type="number" default="0" visible="false"/>
          <setting id="MoviesOnline7_fail" type="number" default="0" visible="false"/>
          <setting id="MoviesOnline7_check" type="number" default="0" visible="false"/>
-         <setting id="hdmz-enable" type="bool" label="hdmz Enabled" default="true" visible="true"/>
-         <setting id="hdmz-base_url" type="text" label="     Base Url" default="http://www.hdmoviezone.net" visible="eq(-1,true)"/>
-         <setting id="hdmz-sub_check" type="bool" label="     Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
-         <setting id="hdmz_try" type="number" default="0" visible="false"/>
-         <setting id="hdmz_fail" type="number" default="0" visible="false"/>
-         <setting id="hdmz_check" type="number" default="0" visible="false"/>
          <setting id="streamallthis.is-enable" type="bool" label="streamallthis.is Enabled" default="true" visible="true"/>
          <setting id="streamallthis.is-base_url" type="text" label="     Base Url" default="http://streamallthis.is" visible="eq(-1,true)"/>
          <setting id="streamallthis.is-sub_check" type="bool" label="     Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
@@ -362,6 +346,12 @@
          <setting id="stream-tv.co_try" type="number" default="0" visible="false"/>
          <setting id="stream-tv.co_fail" type="number" default="0" visible="false"/>
          <setting id="stream-tv.co_check" type="number" default="0" visible="false"/>
+         <setting id="moviestorm.eu-enable" type="bool" label="moviestorm.eu Enabled" default="true" visible="true"/>
+         <setting id="moviestorm.eu-base_url" type="text" label="     Base Url" default="http://moviestorm.eu" visible="eq(-1,true)"/>
+         <setting id="moviestorm.eu-sub_check" type="bool" label="     Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
+         <setting id="moviestorm.eu_try" type="number" default="0" visible="false"/>
+         <setting id="moviestorm.eu_fail" type="number" default="0" visible="false"/>
+         <setting id="moviestorm.eu_check" type="number" default="0" visible="false"/>
     </category>
 	
     <category label="Subtitles">
