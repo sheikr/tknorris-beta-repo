@@ -1531,14 +1531,12 @@ def make_dir_from_list(section, list_data, slug=None, query = None, page = None)
         if section == SECTIONS.MOVIES:
             show['watched'] = watched.get(show['ids']['slug'], False)
         else:
-            try:
-                show['watched'] = watched[show['ids']['slug']] >= show['aired_episodes']
-            except:
-                show['watched'] = False
+            try: show['watched'] = watched[show['ids']['slug']] >= show['aired_episodes']
+            except: show['watched'] = False
 
         show['in_collection']=in_collection.get(show['ids']['slug'],False)
             
-        liz, liz_url =make_item(section_params, show, menu_items)
+        liz, liz_url = make_item(section_params, show, menu_items)
         
         xbmcplugin.addDirectoryItem(int(sys.argv[1]), liz_url, liz, isFolder=section_params['folder'], totalItems=totalItems)
 
@@ -1564,6 +1562,18 @@ def make_dir_from_cal(mode, start_date, days):
     liz_url = _SALTS.build_plugin_url({'mode': mode, 'start_date': last_str})
     xbmcplugin.addDirectoryItem(int(sys.argv[1]), liz_url, liz, isFolder=True)
     
+    cache_watched = _SALTS.get_setting('cache_watched')=='true'
+    watched={}
+    if TOKEN:
+        watched_history = trakt_api.get_watched(SECTIONS.TV, cached=cache_watched)
+        for item in watched_history:
+            slug = item['show']['ids']['slug']
+            watched[slug] = {}
+            for season in item['seasons']:
+                watched[slug][season['number']]={}
+                for episode in season['episodes']:
+                    watched[slug][season['number']][episode['number']]=True
+
     totalItems=len(days)
     for day in sorted(days.items()):
         for item in day[1]:
@@ -1572,6 +1582,9 @@ def make_dir_from_cal(mode, start_date, days):
             fanart=show['images']['fanart']['full']
             utc_secs = utils.iso_2_utc(episode['first_aired'])
             show_date = datetime.date.fromtimestamp(utc_secs)
+            
+            try: episode['watched']=watched[show['ids']['slug']][episode['season']][episode['number']]
+            except: episode['watched']=False
             
             if show_date < start_date.date():
                 log_utils.log('Skipping show before start: |%s| before |%s|' % (show_date, start_date.date()), xbmc.LOGDEBUG)
@@ -1590,7 +1603,7 @@ def make_dir_from_cal(mode, start_date, days):
             queries = {'mode': MODES.SEASONS, 'slug': show['ids']['slug'], 'fanart': fanart}
             menu_items.append(('Browse Seasons', 'Container.Update(%s)' % (_SALTS.build_plugin_url(queries))), )
  
-            liz, liz_url =make_episode_item(show, episode, show_subs=False, menu_items=menu_items)
+            liz, liz_url = make_episode_item(show, episode, show_subs=False, menu_items=menu_items)
             label=liz.getLabel()
             label = '[[COLOR deeppink]%s[/COLOR]] %s - %s' % (date_time, show['title'], label.decode('utf-8', 'replace'))
             if episode['season']==1 and episode['number']==1:
@@ -1728,6 +1741,7 @@ def make_episode_item(show, episode, show_subs=True, menu_items=None):
 
 def make_item(section_params, show, menu_items=None):
     if menu_items is None: menu_items=[]
+    if not isinstance(show['title'],basestring): show['title']=''
     show['title']=re.sub(' \(\d{4}\)$','',show['title'])
     label = '%s (%s)' % (show['title'], show['year'])
     liz=utils.make_list_item(label, show)
