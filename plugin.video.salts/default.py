@@ -146,17 +146,17 @@ def browse_menu(section):
         if utils.menu_on('subscriptions'): _SALTS.add_directory({'mode': MODES.MANAGE_SUBS, 'section': section}, {'title': 'My Subscriptions'}, img=utils.art('my_subscriptions.png'), fanart=utils.art('fanart.jpg'))
         if utils.menu_on('watchlist'): _SALTS.add_directory({'mode': MODES.SHOW_WATCHLIST, 'section': section}, {'title': 'My Watchlist'}, img=utils.art('my_watchlist.png'), fanart=utils.art('fanart.jpg'))
         if utils.menu_on('my_lists'): _SALTS.add_directory({'mode': MODES.MY_LISTS, 'section': section}, {'title': 'My Lists'}, img=utils.art('my_lists.png'), fanart=utils.art('fanart.jpg'))
-    if utils.menu_on('other_lists'): _SALTS.add_directory({'mode': MODES.OTHER_LISTS, 'section': section}, {'title': 'Other Lists'}, img=utils.art('other_lists.png'), fanart=utils.art('fanart.jpg'))
+#     if utils.menu_on('other_lists'): _SALTS.add_directory({'mode': MODES.OTHER_LISTS, 'section': section}, {'title': 'Other Lists'}, img=utils.art('other_lists.png'), fanart=utils.art('fanart.jpg'))
     if section==SECTIONS.TV:
         if TOKEN: 
             if utils.menu_on('progress'): add_refresh_item({'mode': MODES.SHOW_PROGRESS}, 'My Next Episodes', utils.art('my_progress.png'), utils.art('fanart.jpg'))
             if utils.menu_on('my_cal'): add_refresh_item({'mode': MODES.MY_CAL}, 'My Calendar', utils.art('my_calendar.png'), utils.art('fanart.jpg'))
         if utils.menu_on('general_cal'): add_refresh_item({'mode': MODES.CAL}, 'General Calendar', utils.art('calendar.png'), utils.art('fanart.jpg'))
         if utils.menu_on('premiere_cal'): add_refresh_item({'mode': MODES.PREMIERES}, 'Premiere Calendar', utils.art('premiere_calendar.png'), utils.art('fanart.jpg'))
-        if TOKEN:
-            if utils.menu_on('friends'): add_refresh_item({'mode': MODES.FRIENDS_EPISODE, 'section': section}, 'Friends Episode Activity [COLOR red][I](Temporarily Broken)[/I][/COLOR]', utils.art('friends_episode.png'), utils.art('fanart.jpg'))
-    if TOKEN:
-        if utils.menu_on('friends'): add_refresh_item({'mode': MODES.FRIENDS, 'section': section}, 'Friends Activity [COLOR red][I](Temporarily Broken)[/I][/COLOR]', utils.art('friends.png'), utils.art('fanart.jpg'))
+#         if TOKEN:
+#             if utils.menu_on('friends'): add_refresh_item({'mode': MODES.FRIENDS_EPISODE, 'section': section}, 'Friends Episode Activity [COLOR red][I](Temporarily Broken)[/I][/COLOR]', utils.art('friends_episode.png'), utils.art('fanart.jpg'))
+#     if TOKEN:
+#         if utils.menu_on('friends'): add_refresh_item({'mode': MODES.FRIENDS, 'section': section}, 'Friends Activity [COLOR red][I](Temporarily Broken)[/I][/COLOR]', utils.art('friends.png'), utils.art('fanart.jpg'))
     if utils.menu_on('search'): _SALTS.add_directory({'mode': MODES.SEARCH, 'section': section}, {'title': 'Search'}, img=utils.art(search_img), fanart=utils.art('fanart.jpg'))
     if utils.menu_on('search'): _SALTS.add_directory({'mode': MODES.RECENT_SEARCH, 'section': section}, {'title': 'Recent Searches'}, img=utils.art(search_img), fanart=utils.art('fanart.jpg'))
     if utils.menu_on('search'): _SALTS.add_directory({'mode': MODES.SAVED_SEARCHES, 'section': section}, {'title': 'Saved Searches'}, img=utils.art(search_img), fanart=utils.art('fanart.jpg'))
@@ -528,7 +528,7 @@ def get_progress(cache_override=False):
 @url_dispatcher.register(MODES.SHOW_PROGRESS)
 def show_progress():
     for episode in get_progress():
-        log_utils.log('Episode: Sort Keys: Tile: |%s| Last Watched: |%s| Percent: |%s%%| Completed: |%s|' % (episode['show']['title'], episode['last_watched_at'], episode['percent_completed'], episode['completed']))
+        log_utils.log('Episode: Sort Keys: Tile: |%s| Last Watched: |%s| Percent: |%s%%| Completed: |%s|' % (episode['show']['title'], episode['last_watched_at'], episode['percent_completed'], episode['completed']), xbmc.LOGDEBUG)
         first_aired_utc = utils.iso_2_utc(episode['episode']['first_aired'])
         if _SALTS.get_setting('show_unaired_next')=='true' or first_aired_utc <=time.time():
             show=episode['show']
@@ -683,8 +683,11 @@ def search_results(section, query, page = 1):
 @url_dispatcher.register(MODES.SEASONS, ['slug', 'fanart'])
 def browse_seasons(slug, fanart):
     seasons=trakt_api.get_seasons(slug)
-    progress = trakt_api.get_show_progress(slug, cached=_SALTS.get_setting('cache_watched')=='true')
-    info = utils.make_seasons_info(progress)
+    info={}
+    if TOKEN:
+        progress = trakt_api.get_show_progress(slug, cached=_SALTS.get_setting('cache_watched')=='true')
+        info = utils.make_seasons_info(progress)
+
     totalItems=len(seasons)
     for season in seasons:
         if _SALTS.get_setting('show_season0') == 'true' or season['number'] != 0:
@@ -699,8 +702,10 @@ def browse_seasons(slug, fanart):
 def browse_episodes(slug, season):
     show=trakt_api.get_show_details(slug)
     episodes=trakt_api.get_episodes(slug, season)
-    progress = trakt_api.get_show_progress(slug, cached=_SALTS.get_setting('cache_watched')=='true')
-    episodes = utils.make_episodes_watched(episodes, progress)
+    if TOKEN:
+        progress = trakt_api.get_show_progress(slug, cached=_SALTS.get_setting('cache_watched')=='true')
+        episodes = utils.make_episodes_watched(episodes, progress)
+
     totalItems=len(episodes)
     now=time.time()
     for episode in episodes:
@@ -880,9 +885,10 @@ def play_source(mode, hoster_url, video_type, slug, season='', episode=''):
     else:
         stream_url = hmf.resolve()
         if not stream_url or not isinstance(stream_url, basestring):
-            # commenting out as it hides urlresolver notifications
-            #builtin = 'XBMC.Notification(%s,Could not Resolve Url: %s, 5000, %s)'
-            #xbmc.executebuiltin(builtin % (_SALTS.get_name(), hoster_url, ICON_PATH))
+            try: msg = stream_url.msg
+            except: msg = hoster_url
+            builtin = 'XBMC.Notification(%s,Link Resolve Failed: %s, 7500, %s)'
+            xbmc.executebuiltin(builtin % (_SALTS.get_name(), msg, ICON_PATH))
             return False
 
     resume_point = 0
@@ -903,6 +909,7 @@ def play_source(mode, hoster_url, video_type, slug, season='', episode=''):
 
         art={'thumb': '', 'fanart': ''}
         info={}
+        show_meta = {}
         if video_type == VIDEO_TYPES.EPISODE:
             path = _SALTS.get_setting('tv-download-folder')
             file_name = utils.filename_from_title(slug, VIDEO_TYPES.TVSHOW)
@@ -938,7 +945,7 @@ def play_source(mode, hoster_url, video_type, slug, season='', episode=''):
         utils.download_media(stream_url, path, file_name)
         return True
     
-    if video_type == VIDEO_TYPES.EPISODE and utils.srt_download_enabled():
+    if video_type == VIDEO_TYPES.EPISODE and utils.srt_download_enabled() and show_meta:
         srt_path = download_subtitles(_SALTS.get_setting('subtitle-lang'), show_meta['title'], show_meta['year'], season, episode)
         if utils.srt_show_enabled() and srt_path:
             log_utils.log('Setting srt path: %s' % (srt_path), xbmc.LOGDEBUG)
