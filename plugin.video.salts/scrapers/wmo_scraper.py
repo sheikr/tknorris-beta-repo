@@ -24,8 +24,8 @@ from salts_lib.db_utils import DB_Connection
 from salts_lib.constants import VIDEO_TYPES
 from salts_lib.constants import QUALITIES
 
-BASE_URL = 'http://movies-online.li'
-QUALITY_MAP = {'HD': QUALITIES.HIGH, 'CAM': QUALITIES.LOW, 'BR-RIP': QUALITIES.HD, 'UNKNOWN': QUALITIES.MEDIUM, 'DVD-RIP': QUALITIES.HIGH}
+BASE_URL = 'http://watchmovies-online.ch'
+QUALITY_MAP = {'HD': QUALITIES.HIGH, 'CAM': QUALITIES.LOW, 'BR-RIP': QUALITIES.HD, 'UNKNOWN': QUALITIES.MEDIUM, 'DVD-RIP': QUALITIES.HIGH, '1080P BLURAY': QUALITIES.HD}
 
 class WMO_Scraper(scraper.Scraper):
     base_url=BASE_URL
@@ -43,12 +43,11 @@ class WMO_Scraper(scraper.Scraper):
         return 'wmo.ch'
     
     def resolve_link(self, link):
-        if self.base_url in link:
-            url = urlparse.urljoin(self.base_url, link)
-            html = self._http_get(url, cache_limit=.5)
-            match = re.search('id="redirectButton[^>]+href=(?:\'|")([^"\']+)', html)
-            if match:
-                return match.group(1)
+        url = urlparse.urljoin(self.base_url, link)
+        html = self._http_get(url, cache_limit=.5)
+        match = re.search('href=(?:\'|")([^"\']+)(?:"|\')>Click Here to Play', html)
+        if match:
+            return match.group(1)
         else:
             return link
     
@@ -65,7 +64,7 @@ class WMO_Scraper(scraper.Scraper):
             
             match = re.search('Quality</label>: ([^<]+)', html)
             if match:
-                quality=QUALITY_MAP.get(match.group(1))
+                quality=QUALITY_MAP.get(match.group(1).upper())
             else:
                 quality = None
                                          
@@ -91,7 +90,7 @@ class WMO_Scraper(scraper.Scraper):
         for match in re.finditer(pattern, html, re.DOTALL):
             url, match_title, match_year = match.groups()
             if not year or not match_year or year == match_year:
-                result={'url': url.replace(self.base_url, ''), 'title': match_title, 'year': ''}
+                result={'url': url.replace(self.base_url, ''), 'title': match_title, 'year': match_year}
                 results.append(result)
 
         return results

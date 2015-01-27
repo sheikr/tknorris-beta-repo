@@ -26,10 +26,7 @@ from salts_lib import log_utils
 from salts_lib.constants import VIDEO_TYPES
 from salts_lib.db_utils import DB_Connection
 from salts_lib.constants import QUALITIES
-from salts_lib.constants import HOST_Q
 from salts_lib.constants import Q_ORDER
-from salts_lib.constants import BLOG_Q_MAP
-
 
 BASE_URL = 'http://myvideolinks.eu'
 
@@ -52,7 +49,7 @@ class MyVidLinks_Scraper(scraper.Scraper):
         return link
 
     def format_source_label(self, item):
-        return '[%s] %s (%s Views) (%s/100)' % (item['quality'], item['host'], item['views'], item['rating'])
+        return '[%s] %s (%s Views)' % (item['quality'], item['host'], item['views'])
     
     def get_sources(self, video):
         source_url= self.get_url(video)
@@ -103,11 +100,15 @@ class MyVidLinks_Scraper(scraper.Scraper):
         return hosters
     
     def __fix_base_url(self, video_type):
+        html = self._http_get(self.base_url, cache_limit=1)
         if video_type == VIDEO_TYPES.MOVIE:
-            self.base_url = 'http://myvideolinks.xyz'
+            pattern='href="([^"]+)">MOVIES<'
         else:
-            if not self.base_url.startswith('http://tv.'):
-                self.base_url = self.base_url.replace('http://', 'http://tv.')
+            pattern='href="([^"]+)">TV SHOWS<'
+        
+        match = re.search(pattern, html)
+        if match:
+            self.base_url = match.group(1)
         
     def get_url(self, video):
         url = None

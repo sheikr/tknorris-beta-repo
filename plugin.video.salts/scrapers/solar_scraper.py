@@ -52,7 +52,7 @@ class Solar_Scraper(scraper.Scraper):
             return match.group(1)
     
     def format_source_label(self, item):
-        label='[%s] %s (%s/100)' % (item['quality'], item['host'], item['rating'])
+        label='[%s] %s' % (item['quality'], item['host'])
         return label
     
     def get_sources(self, video):
@@ -71,9 +71,9 @@ class Solar_Scraper(scraper.Scraper):
                     url, host, rating, quality = link_match.groups()
                     if rating == 'n/a': rating=None
                     url = url.replace('/show/', '/play/')
-                    quality=quality.strip()
+                    quality = QUALITY_MAP.get(quality.strip(),QUALITIES.MEDIUM)
                     
-                    hoster = {'multi-part': False, 'url': url, 'host': host, 'class': self, 'quality': QUALITY_MAP.get(quality,QUALITIES.MEDIUM), 'views': None, 'rating': rating, 'direct': False}
+                    hoster = {'multi-part': False, 'url': url, 'host': host, 'class': self, 'quality': self._get_quality(video, host, quality), 'views': None, 'rating': rating, 'direct': False}
                     hosters.append(hoster)
             
         return hosters

@@ -366,4 +366,15 @@ class Scraper(object):
             quality=QUALITIES.LOW
         return quality
 
+    def _height_get_quality(self, height):
+        height=int(height)
+        if height > 480:
+            quality=QUALITIES.HD
+        elif height >= 400:
+            quality=QUALITIES.HIGH
+        elif height > 200:
+            quality=QUALITIES.MEDIUM
+        else:
+            quality=QUALITIES.LOW
+        return quality
     
