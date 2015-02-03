@@ -20,6 +20,7 @@ import urllib
 import urlparse
 import re
 import datetime
+import time
 import xbmcaddon
 from salts_lib import log_utils
 from salts_lib.constants import VIDEO_TYPES
@@ -27,9 +28,11 @@ from salts_lib.db_utils import DB_Connection
 from salts_lib.constants import QUALITIES
 from salts_lib.constants import Q_ORDER
 
-BASE_URL = 'http://myvideolinks.eu'
+BASE_URL = 'http://tv-release.net'
+QUALITY_MAP = {'MOVIES-XVID': QUALITIES.MEDIUM, 'TV-XVID': QUALITIES.HIGH, 'TV-MP4': QUALITIES.HIGH,
+               'TV-480P': QUALITIES.HIGH, 'MOVIES-480P': QUALITIES.HIGH, 'TV-720P': QUALITIES.HD, 'MOVIES-720P': QUALITIES.HD}
 
-class MyVidLinks_Scraper(scraper.Scraper):
+class TVReleaseNet_Scraper(scraper.Scraper):
     base_url = BASE_URL
 
     def __init__(self, timeout=scraper.DEFAULT_TIMEOUT):
@@ -43,72 +46,35 @@ class MyVidLinks_Scraper(scraper.Scraper):
 
     @classmethod
     def get_name(cls):
-        return 'MyVideoLinks.eu'
+        return 'TVRelease.Net'
 
     def resolve_link(self, link):
         return link
 
     def format_source_label(self, item):
-        return '[%s] %s (%s Views)' % (item['quality'], item['host'], item['views'])
+        return '[%s] %s' % (item['quality'], item['host'])
 
     def get_sources(self, video):
         source_url = self.get_url(video)
         hosters = []
         if source_url:
-            self.__fix_base_url(video.video_type)
             url = urlparse.urljoin(self.base_url, source_url)
             html = self._http_get(url, cache_limit=.5)
 
-            views = None
-            pattern = '<span[^>]+>(\d+)\s+Views'
-            match = re.search(pattern, html)
+            q_str = ''
+            match = re.search('>Category.*?td_col">([^<]+)', html)
             if match:
-                views = int(match.group(1))
+                q_str = match.group(1).upper()
 
-            if video.video_type == VIDEO_TYPES.MOVIE:
-                return self.__get_movie_links(video, views, html)
-            else:
-                return self.__get_episode_links(video, views, html)
+            pattern = "td_cols.*?href='([^']+)"
+            for match in re.finditer(pattern, html):
+                url = match.group(1)
+                hoster = {'multi-part': False, 'class': self, 'views': None, 'url': url, 'rating': None, 'direct': False}
+                hoster['host'] = urlparse.urlsplit(url).hostname
+                hoster['quality'] = self._get_quality(video, hoster['host'], QUALITY_MAP.get(q_str, None))
+                hosters.append(hoster)
+
         return hosters
-
-    def __get_movie_links(self, video, views, html):
-        pattern = 'rel="bookmark"\s+title="Permanent Link to ([^"]+)'
-        match = re.search(pattern, html)
-        q_str = ''
-        if match:
-            q_str = match.group(1)
-
-        return self.__get_links(video, views, html, q_str)
-
-    def __get_episode_links(self, video, views, html):
-        pattern = '<h4>(.*?)</h4>(.*?)</ul>'
-        hosters = []
-        for match in re.finditer(pattern, html, re.DOTALL):
-            q_str, fragment = match.groups()
-            hosters += self.__get_links(video, views, fragment, q_str)
-        return hosters
-
-    def __get_links(self, video, views, html, q_str):
-        pattern = 'li>\s*<a\s+href="(http[^"]+)'
-        hosters = []
-        for match in re.finditer(pattern, html):
-            url = match.group(1)
-            hoster = {'multi-part': False, 'class': self, 'views': views, 'url': url, 'rating': None, 'quality': None, 'direct': False}
-            hoster['host'] = urlparse.urlsplit(url).hostname
-            hoster['quality'] = self._blog_get_quality(video, q_str, hoster['host'])
-            hosters.append(hoster)
-        return hosters
-
-    def __fix_base_url(self, video_type):
-        html = self._http_get(self.base_url, cache_limit=1)
-        if video_type == VIDEO_TYPES.MOVIE:
-            pattern = 'href="([^"]+)">MOVIES<'
-        else:
-            pattern = 'href="([^"]+)">TV SHOWS<'
-
-        match = re.search(pattern, html)
-        if match:
-            self.base_url = match.group(1)
 
     def get_url(self, video):
         url = None
@@ -128,8 +94,7 @@ class MyVidLinks_Scraper(scraper.Scraper):
                 search_title = '%s %s' % (video.title, video.year)
             results = self.search(video.video_type, search_title, video.year)
             if results:
-                # episodes don't tell us the quality on the search screen so just return the 1st result
-                if select == 0 or video.video_type == VIDEO_TYPES.EPISODE:
+                if select == 0:
                     best_result = results[0]
                 else:
                     best_qorder = 0
@@ -153,55 +118,51 @@ class MyVidLinks_Scraper(scraper.Scraper):
 
     @classmethod
     def get_settings(cls):
-        settings = super(MyVidLinks_Scraper, cls).get_settings()
+        settings = super(TVReleaseNet_Scraper, cls).get_settings()
         settings = cls._disable_sub_check(settings)
         name = cls.get_name()
         settings.append('         <setting id="%s-filter" type="slider" range="0,180" option="int" label="     Filter results older than (0=No Filter) (days)" default="30" visible="eq(-6,true)"/>' % (name))
-        settings.append('         <setting id="%s-select" type="enum" label="     Automatically Select (Movies only)" values="Most Recent|Highest Quality" default="0" visible="eq(-7,true)"/>' % (name))
+        settings.append('         <setting id="%s-select" type="enum" label="     Automatically Select" values="Most Recent|Highest Quality" default="0" visible="eq(-7,true)"/>' % (name))
         return settings
 
     def search(self, video_type, title, year):
-        self.__fix_base_url(video_type)
-        if video_type == VIDEO_TYPES.MOVIE:
-            search_url = self.base_url
-            data = {'s': title}
-            cache_limit = 0
+        search_url = urlparse.urljoin(self.base_url, '/?s=')
+        search_url += urllib.quote(title)
+        if video_type == VIDEO_TYPES.EPISODE:
+            search_url += '&cat=TV-XviD,TV-Mp4,TV-720p,TV-480p,'
         else:
-            search_url = urlparse.urljoin(self.base_url, '/?s=')
-            search_url += urllib.quote_plus(title)
-            data = None
-            cache_limit = .25
-
-        html = self._http_get(search_url, data=data, cache_limit=cache_limit)
+            search_url += '&cat=Movies-XviD,Movies-720p,Movies-480p'
+        html = self._http_get(search_url, cache_limit=.25)
         results = []
         filter_days = datetime.timedelta(days=int(xbmcaddon.Addon().getSetting('%s-filter' % (self.get_name()))))
         today = datetime.date.today()
-        pattern = '<h4>\s*<a\s+href="([^"]+)"\s+rel="bookmark"\s+title="([^"]+)'
+        pattern = "posts_table.*?<a[^>]+>([^<]+).*?href='([^']+)'>([^<]+).*?([^>]+)</td></tr>"
         for match in re.finditer(pattern, html, re.DOTALL):
-            url, title = match.groups('')
-
+            quality, url, title, date_str = match.groups('')
+            quality = quality.upper()
             if filter_days:
-                match = re.search('/(\d{4})/(\d{2})/(\d{2})/', url)
-                if match:
-                    post_year, post_month, post_day = match.groups()
-                    post_date = datetime.date(int(post_year), int(post_month), int(post_day))
-                    if today - post_date > filter_days:
-                        continue
+                try: post_date = datetime.datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S').date()
+                except TypeError: post_date = datetime.datetime(*(time.strptime(date_str, '%Y-%m-%d %H:%M:%S')[0:6])).date()
+                if today - post_date > filter_days:
+                    continue
 
             match_year = ''
-            title = title.replace('&#8211;', '-')
-            title = title.replace('&#8217;', "'")
             if video_type == VIDEO_TYPES.MOVIE:
-                match = re.search('(.*?)\s*[\[(]?(\d{4})[)\]]?\s*(.*)', title)
+                match = re.search('(.*?)\s*(\d{4})', title)
                 if match:
-                    title, match_year, extra_title = match.groups()
-                    title = '%s [%s]' % (title, extra_title)
+                    title, match_year = match.groups()
+                    title = '%s [%s]' % (title, quality)
+            else:
+                match_year = ''
+                match = re.search('(.*?)\s*S\d+E\d+', title)
+                if match:
+                    title = match.groups()
+                    title = '%s [%s]' % (title, quality)
 
-            print year, match_year
             if not year or not match_year or year == match_year:
                 result = {'url': url.replace(self.base_url, ''), 'title': title, 'year': match_year}
                 results.append(result)
         return results
 
-    def _http_get(self, url, data=None, cache_limit=8):
-        return super(MyVidLinks_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, cache_limit=cache_limit)
+    def _http_get(self, url, cache_limit=8):
+        return super(TVReleaseNet_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, cache_limit=cache_limit)
