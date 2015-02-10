@@ -33,10 +33,13 @@ from constants import SECTIONS
 class TraktError(Exception):
     pass
 
+class TraktNotFoundError(Exception):
+    pass
+
 class TransientTraktError(Exception):
     pass
 
-BASE_URL = 'api.trakt.tv'
+BASE_URL = 'api-v2launch.trakt.tv'
 V2_API_KEY = 'eb41e95243d8c95152ed72a1fc0394c93cb785cb33aed609fdde1a07454584b4'
 RESULTS_LIMIT = 10
 
@@ -346,6 +349,8 @@ class Trakt_API():
                                 self.token = self.login()
                                 xbmcaddon.Addon('plugin.video.salts').setSetting('trakt_token', self.token)
                                 login_retry = True
+                        elif e.code == 404:
+                            raise TraktNotFoundError()
                         else:
                             raise
                     elif isinstance(e.reason, socket.timeout) or isinstance(e.reason, ssl.SSLError):

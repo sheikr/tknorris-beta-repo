@@ -19,6 +19,7 @@ import scraper
 import re
 import urlparse
 import xbmcaddon
+import time
 from salts_lib.db_utils import DB_Connection
 from salts_lib.constants import VIDEO_TYPES
 from salts_lib.constants import QUALITIES
@@ -53,7 +54,7 @@ class WSO_Scraper(scraper.Scraper):
             return link
 
     def format_source_label(self, item):
-        label = '[%s] %s (%s views)' % (item['quality'], item['host'], item['views'])
+        label = '[%s] %s (%s old)' % (item['quality'], item['host'], item['age_str'])
         return label
 
     def get_sources(self, video):
@@ -63,13 +64,59 @@ class WSO_Scraper(scraper.Scraper):
             url = urlparse.urljoin(self.base_url, source_url)
             html = self._http_get(url, cache_limit=.5)
 
-            pattern = 'class="[^"]*tdhost".*?href="([^"]+)">([^<]+).*?class="[^"]*link_views"\s+id="([^"]*)'
+            pattern = 'class="[^"]*tdhost".*?href="([^"]+)">([^<]+).*?"[^"]*datespan[^>]+>([^<]+)'
+            max_age = 0
+            now = min_age = int(time.time())
             for match in re.finditer(pattern, html, re.DOTALL):
-                stream_url, host, views = match.groups()
-                if not views: views = None
-                hoster = {'multi-part': False, 'host': host.lower(), 'class': self, 'url': stream_url, 'quality': self._get_quality(video, host, QUALITIES.HIGH), 'views': views, 'rating': None, 'direct': False}
+                stream_url, host, age_str = match.groups()
+                age = self.__get_age(now, age_str)
+                if age > max_age: max_age = age
+                if age < min_age: min_age = age
+                hoster = {'multi-part': False, 'host': host.lower(), 'class': self, 'url': stream_url, 'quality': self._get_quality(video, host, QUALITIES.HIGH), 'views': None, 'rating': None, 'direct': False}
+                hoster['age_str'] = age_str
+                hoster['age'] = age
                 hosters.append(hoster)
+
+            unit = (max_age - min_age) / 100
+            for hoster in hosters:
+                if unit > 0:
+                    hoster['rating'] = (hoster['age'] - min_age) / unit
+                else:
+                    hoster['rating'] = 100
+
+                #print '%s, %s' % (hoster['rating'], hoster['age'])
+
         return hosters
+
+    def __get_age(self, now, age_str):
+        age_str = age_str.replace('<span class="linkdate">', '')
+        age_str = age_str.replace('</span>', '')
+        try:
+            age = int(age_str)
+        except ValueError:
+            match = re.search('(\d+)\s+(.*)', age_str)
+            if match:
+                num, unit = match.groups()
+                num = int(num)
+                unit = unit.lower()
+                if 'minute' in unit:
+                    mult = 60
+                elif 'hour' in unit:
+                    mult = (60 * 60)
+                elif 'day' in unit:
+                    mult = (60 * 60 * 24)
+                elif 'month' in unit:
+                    mult = (60 * 60 * 24 * 30)
+                elif 'year' in unit:
+                    mult = (60 * 60 * 24 * 365)
+                else:
+                    mult = 0
+            else:
+                num = 0
+                mult = 0
+            age = now - (num * mult)
+        #print '%s, %s, %s, %s' % (num, unit, mult, age)
+        return age
 
     def get_url(self, video):
         return super(WSO_Scraper, self)._default_get_url(video)
@@ -100,13 +147,15 @@ class WSO_Scraper(scraper.Scraper):
 
     def _get_episode_url(self, show_url, video):
         episode_pattern = 'class="PostHeader">\s*<a\s+href="([^"]+)[^>]+title="[^"]+[Ss]%02d[Ee]%02d[ "]' % (int(video.season), int(video.episode))
-        print episode_pattern
         title_pattern = ''
+        airdate_pattern = ''
+        if video.ep_airdate is not None:
+            airdate_pattern = 'class="PostHeader">\s*<a\s+href="([^"]+)[^>]+title="[^"]+%s[ \)"]' % (video.ep_airdate.strftime('%Y %m %d'))
+
         for page in xrange(1, self.max_pages + 1):
             url = show_url
             if page > 1: url += '%s/page/%s' % (show_url, page)
-            print url
-            ep_url = super(WSO_Scraper, self)._default_get_episode_url(url, video, episode_pattern, title_pattern)
+            ep_url = super(WSO_Scraper, self)._default_get_episode_url(url, video, episode_pattern, title_pattern, airdate_pattern)
             if ep_url is not None:
                 return ep_url
 
