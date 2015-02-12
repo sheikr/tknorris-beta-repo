@@ -19,15 +19,15 @@ import scraper
 import re
 import urlparse
 import xbmcaddon
+import json
 import urllib
 from salts_lib.db_utils import DB_Connection
 from salts_lib.constants import VIDEO_TYPES
 from salts_lib.constants import QUALITIES
 
-BASE_URL = 'http://moviestorm.eu'
-QUALITY_MAP = {'HD': QUALITIES.HIGH, 'CAM': QUALITIES.LOW, 'BRRIP': QUALITIES.HIGH, 'UNKNOWN': QUALITIES.MEDIUM, 'DVDRIP': QUALITIES.HIGH}
+BASE_URL = 'http://www.ch131.me'
 
-class MovieStorm_Scraper(scraper.Scraper):
+class CH131_Scraper(scraper.Scraper):
     base_url = BASE_URL
 
     def __init__(self, timeout=scraper.DEFAULT_TIMEOUT):
@@ -37,24 +37,17 @@ class MovieStorm_Scraper(scraper.Scraper):
 
     @classmethod
     def provides(cls):
-        return frozenset([VIDEO_TYPES.TVSHOW, VIDEO_TYPES.SEASON, VIDEO_TYPES.EPISODE, VIDEO_TYPES.MOVIE])
+        return frozenset([VIDEO_TYPES.TVSHOW, VIDEO_TYPES.EPISODE])
 
     @classmethod
     def get_name(cls):
-        return 'moviestorm.eu'
+        return 'ch131'
 
     def resolve_link(self, link):
-        if self.base_url in link:
-            url = urlparse.urljoin(self.base_url, link)
-            html = self._http_get(url, cache_limit=.5)
-            match = re.search('class="real_link"\s+href="([^"]+)', html)
-            if match:
-                return match.group(1)
-        else:
-            return link
+        return link
 
     def format_source_label(self, item):
-        label = '[%s] %s (%s views)' % (item['quality'], item['host'], item['views'])
+        label = '[%s] %s ' % (item['quality'], item['host'])
         return label
 
     def get_sources(self, video):
@@ -63,31 +56,29 @@ class MovieStorm_Scraper(scraper.Scraper):
         if source_url:
             url = urlparse.urljoin(self.base_url, source_url)
             html = self._http_get(url, cache_limit=.5)
-            pattern = 'class="source_td">\s*<img[^>]+>\s*(.*?)\s*-\s*\((\d+) views\).*?class="quality_td">\s*(.*?)\s*<.*?href="([^"]+)'
-            for match in re.finditer(pattern, html, re.DOTALL):
-                host, views, quality_str, stream_url = match.groups()
 
-                hoster = {'multi-part': False, 'host': host.lower(), 'class': self, 'url': stream_url, 'quality': self._get_quality(video, host, QUALITY_MAP.get(quality_str.upper())), 'views': views, 'rating': None, 'direct': False}
+            for match in re.finditer('href="([^"]+)" rel="nofollow"', html):
+                url = match.group(1)
+                host = urlparse.urlsplit(url).hostname.replace('embed.', '')
+                hoster = {'multi-part': False, 'host': host, 'class': self, 'quality': self._get_quality(video, host, QUALITIES.HIGH), 'views': None, 'rating': None, 'url': url, 'direct': False}
                 hosters.append(hoster)
+
         return hosters
 
     def get_url(self, video):
-        return super(MovieStorm_Scraper, self)._default_get_url(video)
+        return super(CH131_Scraper, self)._default_get_url(video)
 
     def _get_episode_url(self, show_url, video):
-        episode_pattern = 'class="number left".*?href="([^"]+season-%d/episode-%d[^"]+)' % (int(video.season), int(video.episode))
-        title_pattern = 'class="name left".*?href="([^"]+)">([^<]+)'
-        airdate_pattern = 'class="edate[^>]+>\s*{p_month}-{p_day}-{year}.*?href="([^"]+)'
-        return super(MovieStorm_Scraper, self)._default_get_episode_url(show_url, video, episode_pattern, title_pattern, airdate_pattern)
+        episode_pattern = 'href="([^"]+season-%s-episode-%s-[^"]+)' % (video.season, video.episode)
+        title_pattern = 'href="([^"]+season-\d+-episode-\d+-[^"]+)[^>]+>[^<]+Season \d+ Episode \d ([^<]+)'
+        return super(CH131_Scraper, self)._default_get_episode_url(show_url, video, episode_pattern, title_pattern)
 
     def search(self, video_type, title, year):
-        url = urlparse.urljoin(self.base_url, '/search?q=%s&go=Search' % urllib.quote_plus(title))
-        html = self._http_get(url, cache_limit=8)
-
+        html = self._http_get(self.base_url, cache_limit=8)
         results = []
-        pattern = 'class="movie_box.*?href="([^"]+).*?<h1>([^<]+)'
         norm_title = self._normalize_title(title)
-        for match in re.finditer(pattern, html, re.DOTALL):
+        pattern = 'class="[^"]*cat-item.*?href="([^"]+)[^>]+>([^<]+)'
+        for match in re.finditer(pattern, html):
             url, match_title = match.groups()
             if norm_title in self._normalize_title(match_title):
                 result = {'url': url.replace(self.base_url, ''), 'title': match_title, 'year': ''}
@@ -96,4 +87,4 @@ class MovieStorm_Scraper(scraper.Scraper):
         return results
 
     def _http_get(self, url, data=None, cache_limit=8):
-        return super(MovieStorm_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, cache_limit=cache_limit)
+        return super(CH131_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, cache_limit=cache_limit)

@@ -376,6 +376,24 @@
          <setting id="TVRelease.Net_check" type="number" default="0" visible="false"/>
          <setting id="TVRelease.Net-filter" type="slider" range="0,180" option="int" label="     Filter results older than (0=No Filter) (days)" default="30" visible="eq(-6,true)"/>
          <setting id="TVRelease.Net-select" type="enum" label="     Automatically Select" values="Most Recent|Highest Quality" default="0" visible="eq(-7,true)"/>
+         <setting id="hdmz-enable" type="bool" label="hdmz Enabled" default="true" visible="true"/>
+         <setting id="hdmz-base_url" type="text" label="     Base Url" default="http://www.hdmoviezone.net" visible="eq(-1,true)"/>
+         <setting id="hdmz-sub_check" type="bool" label="     Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
+         <setting id="hdmz_try" type="number" default="0" visible="false"/>
+         <setting id="hdmz_fail" type="number" default="0" visible="false"/>
+         <setting id="hdmz_check" type="number" default="0" visible="false"/>
+         <setting id="Putlocker-enable" type="bool" label="Putlocker Enabled" default="true" visible="true"/>
+         <setting id="Putlocker-base_url" type="text" label="     Base Url" default="http://putlocker.is" visible="eq(-1,true)"/>
+         <setting id="Putlocker-sub_check" type="bool" label="     Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
+         <setting id="Putlocker_try" type="number" default="0" visible="false"/>
+         <setting id="Putlocker_fail" type="number" default="0" visible="false"/>
+         <setting id="Putlocker_check" type="number" default="0" visible="false"/>
+         <setting id="ch131-enable" type="bool" label="ch131 Enabled" default="true" visible="true"/>
+         <setting id="ch131-base_url" type="text" label="     Base Url" default="http://www.ch131.me" visible="eq(-1,true)"/>
+         <setting id="ch131-sub_check" type="bool" label="     Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
+         <setting id="ch131_try" type="number" default="0" visible="false"/>
+         <setting id="ch131_fail" type="number" default="0" visible="false"/>
+         <setting id="ch131_check" type="number" default="0" visible="false"/>
     </category>
 	
     <category label="Subtitles">
