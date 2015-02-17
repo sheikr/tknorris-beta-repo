@@ -1,0 +1,2 @@
+mvl_movie, http://movies.myvideolinks.xyz 
+mvl_tv, http://site.myvideolinks.xyz
