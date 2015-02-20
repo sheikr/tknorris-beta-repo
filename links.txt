@@ -1,3 +1,3 @@
-mvl_base_url,Movie,http://myvideolinks.uk.to
+mvl_base_url,Movie,http://movies.myvideolinks.xyz
 mvl_base_url,TV Show,http://tv.myvideolinks.eu
 mvl_base_url,Episode,http://tv.myvideolinks.eu
