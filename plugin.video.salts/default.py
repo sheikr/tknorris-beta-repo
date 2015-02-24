@@ -513,21 +513,70 @@ def show_collection(section):
 
 def get_progress(cache_override=False):
     cached = _SALTS.get_setting('cache_watched') == 'true' and not cache_override
+    timeout = max_timeout = int(_SALTS.get_setting('trakt_timeout'))
     max_progress = int(_SALTS.get_setting('progress_size'))
     watched_list = trakt_api.get_watched(SECTIONS.TV, full=True, cached=cached)
     episodes = []
+    worker_count = 0
+    workers = []
+    shows = {}
+    if utils.P_MODE != P_MODES.NONE: q = utils.Queue()
+    begin = time.time()
     for i, watched in enumerate(watched_list):
-        if i != 0 and i >= max_progress:
-            break
+        if utils.P_MODE == P_MODES.NONE:
+            if i != 0 and i >= max_progress:
+                break
+    
+            progress = trakt_api.get_show_progress(watched['show']['ids']['slug'], full=True, cached=cached)
+            if 'next_episode' in progress and progress['next_episode']:
+                episode = {'show': watched['show'], 'episode': progress['next_episode']}
+                episode['last_watched_at'] = watched['last_watched_at']
+                episode['percent_completed'] = (progress['completed'] * 100) / progress['aired'] if progress['aired'] > 0 else 0
+                episode['completed'] = progress['completed']
+                episodes.append(episode)
+        else:
+            worker = utils.start_worker(q, utils.parallel_get_progress, [watched['show']['ids']['slug'], cached])
+            worker_count += 1
+            workers.append(worker)
+            # create a shows dictionary to be used during progress building
+            shows[watched['show']['ids']['slug']] = watched['show']
+            shows[watched['show']['ids']['slug']]['last_watched_at'] = watched['last_watched_at']
 
-        progress = trakt_api.get_show_progress(watched['show']['ids']['slug'], full=True, cached=cached)
-        if 'next_episode' in progress and progress['next_episode']:
-            episode = {'show': watched['show'], 'episode': progress['next_episode']}
-            episode['last_watched_at'] = watched['last_watched_at']
-            episode['percent_completed'] = (progress['completed'] * 100) / progress['aired'] if progress['aired'] > 0 else 0
-            episode['completed'] = progress['completed']
-            episodes.append(episode)
-
+    if utils.P_MODE != P_MODES.NONE:
+        try:
+            while worker_count > 0:
+                try:
+                    log_utils.log('Calling get with timeout: %s' % (timeout), xbmc.LOGDEBUG)
+                    progress = q.get(True, timeout)
+                    #log_utils.log('Got Progress: %s' % (progress), xbmc.LOGDEBUG)
+                    worker_count -= 1
+    
+                    if 'next_episode' in progress and progress['next_episode']:
+                        episode = {'show': shows[progress['slug']], 'episode': progress['next_episode']}
+                        episode['last_watched_at'] = shows[progress['slug']]['last_watched_at']
+                        episode['percent_completed'] = (progress['completed'] * 100) / progress['aired'] if progress['aired'] > 0 else 0
+                        episode['completed'] = progress['completed']
+                        episodes.append(episode)
+    
+                    if max_timeout > 0:
+                        timeout = max_timeout - (time.time() - begin)
+                        if timeout < 0: timeout = 0
+                except utils.Empty:
+                    log_utils.log('Get Progress Process Timeout', xbmc.LOGWARNING)
+                    break
+            else:
+                log_utils.log('All progress results received')
+            
+            total = len(workers)
+            workers = utils.reap_workers(workers)
+            if worker_count > 0:
+                timeout_msg = 'Progress Timeouts: %s/%s' % (worker_count, total)
+                log_utils.log(timeout_msg, xbmc.LOGWARNING)
+                builtin = 'XBMC.Notification(%s,%s, 5000, %s)'
+                xbmc.executebuiltin(builtin % (_SALTS.get_name(), timeout_msg, ICON_PATH))
+        finally:
+            utils.reap_workers(workers, None)
+    
     return utils.sort_progress(episodes, sort_order=SORT_MAP[int(_SALTS.get_setting('sort_progress'))])
 
 @url_dispatcher.register(MODES.SHOW_PROGRESS)
