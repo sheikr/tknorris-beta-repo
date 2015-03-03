@@ -27,9 +27,9 @@ from salts_lib.db_utils import DB_Connection
 from salts_lib.constants import QUALITIES
 from salts_lib.constants import Q_ORDER
 
-BASE_URL = 'http://download.myvideolinks.eu'
+BASE_URL = 'http://rlssource.net'
 
-class MyVidLinks_Scraper(scraper.Scraper):
+class RLSSource_Scraper(scraper.Scraper):
     base_url = BASE_URL
 
     def __init__(self, timeout=scraper.DEFAULT_TIMEOUT):
@@ -43,13 +43,13 @@ class MyVidLinks_Scraper(scraper.Scraper):
 
     @classmethod
     def get_name(cls):
-        return 'MyVideoLinks.eu'
+        return 'RLSSource.net'
 
     def resolve_link(self, link):
         return link
 
     def format_source_label(self, item):
-        return '[%s] %s (%s Views)' % (item['quality'], item['host'], item['views'])
+        return '[%s] %s' % (item['quality'], item['host'])
 
     def get_sources(self, video):
         source_url = self.get_url(video)
@@ -57,45 +57,23 @@ class MyVidLinks_Scraper(scraper.Scraper):
         if source_url:
             url = urlparse.urljoin(self.base_url, source_url)
             html = self._http_get(url, cache_limit=.5)
-
-            views = None
-            pattern = '<span[^>]+>(\d+)\s+Views'
-            match = re.search(pattern, html)
+            
+            q_str = ''
+            match = re.search('class="entry-title">([^<]+)', html)
             if match:
-                views = int(match.group(1))
+                q_str = match.group(1)
 
-            if video.video_type == VIDEO_TYPES.MOVIE:
-                return self.__get_movie_links(video, views, html)
-            else:
-                return self.__get_episode_links(video, views, html)
-        return hosters
+            pattern = 'href="?([^" ]+)(?:[^>]+>){2}\s+\|'
+            for match in re.finditer(pattern, html, re.DOTALL):
+                url = match.group(1)
+                if 'adf.ly' in url:
+                    continue
+                
+                hoster = {'multi-part': False, 'class': self, 'views': None, 'url': url, 'rating': None, 'quality': None, 'direct': False}
+                hoster['host'] = urlparse.urlsplit(url).hostname
+                hoster['quality'] = self._blog_get_quality(video, q_str, hoster['host'])
+                hosters.append(hoster)
 
-    def __get_movie_links(self, video, views, html):
-        pattern = '<h1><span>([^<]+)'
-        match = re.search(pattern, html)
-        q_str = ''
-        if match:
-            q_str = match.group(1)
-
-        return self.__get_links(video, views, html, q_str)
-
-    def __get_episode_links(self, video, views, html):
-        pattern = '<h4>(.*?)</h4>(.*?)</ul>'
-        hosters = []
-        for match in re.finditer(pattern, html, re.DOTALL):
-            q_str, fragment = match.groups()
-            hosters += self.__get_links(video, views, fragment, q_str)
-        return hosters
-
-    def __get_links(self, video, views, html, q_str):
-        pattern = 'li>\s*<a\s+href="(http[^"]+)'
-        hosters = []
-        for match in re.finditer(pattern, html):
-            url = match.group(1)
-            hoster = {'multi-part': False, 'class': self, 'views': views, 'url': url, 'rating': None, 'quality': None, 'direct': False}
-            hoster['host'] = urlparse.urlsplit(url).hostname
-            hoster['quality'] = self._blog_get_quality(video, q_str, hoster['host'])
-            hosters.append(hoster)
         return hosters
 
     def get_url(self, video):
@@ -141,7 +119,7 @@ class MyVidLinks_Scraper(scraper.Scraper):
 
     @classmethod
     def get_settings(cls):
-        settings = super(MyVidLinks_Scraper, cls).get_settings()
+        settings = super(RLSSource_Scraper, cls).get_settings()
         settings = cls._disable_sub_check(settings)
         name = cls.get_name()
         settings.append('         <setting id="%s-filter" type="slider" range="0,180" option="int" label="     Filter results older than (0=No Filter) (days)" default="30" visible="eq(-6,true)"/>' % (name))
@@ -149,23 +127,19 @@ class MyVidLinks_Scraper(scraper.Scraper):
         return settings
 
     def search(self, video_type, title, year):
-        search_url = urlparse.urljoin(self.base_url, '/?s=')
-        search_url += urllib.quote_plus(title)
+        search_url = urlparse.urljoin(self.base_url, '/?s=%s&go=Search' % (urllib.quote_plus(title)))
         html = self._http_get(search_url, cache_limit=1)
         results = []
         filter_days = datetime.timedelta(days=int(xbmcaddon.Addon().getSetting('%s-filter' % (self.get_name()))))
         today = datetime.date.today()
-        pattern = '<h1><span><a\s+href="([^"]+)"\s+rel="bookmark"\s+title="([^"]+)'
+        pattern = 'href="([^"]+)[^>]+rel="bookmark">([^<]+).*?class="entry-date">(\d+)/(\d+)/(\d+)'
         for match in re.finditer(pattern, html, re.DOTALL):
-            url, title = match.groups('')
+            url, title, post_month, post_day, post_year = match.groups('')
 
             if filter_days:
-                match = re.search('/(\d{4})/(\d{2})/(\d{2})/', url)
-                if match:
-                    post_year, post_month, post_day = match.groups()
-                    post_date = datetime.date(int(post_year), int(post_month), int(post_day))
-                    if today - post_date > filter_days:
-                        continue
+                post_date = datetime.date(int(post_year), int(post_month), int(post_day))
+                if today - post_date > filter_days:
+                    continue
 
             match_year = ''
             title = title.replace('&#8211;', '-')
@@ -182,4 +156,4 @@ class MyVidLinks_Scraper(scraper.Scraper):
         return results
 
     def _http_get(self, url, data=None, cache_limit=8):
-        return super(MyVidLinks_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, cache_limit=cache_limit)
+        return super(RLSSource_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, cache_limit=cache_limit)
