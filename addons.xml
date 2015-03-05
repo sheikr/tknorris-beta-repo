@@ -145,7 +145,7 @@ Addons Included
 	<requires>
 		<import addon="xbmc.python" version="2.1.0"/>
 		<import addon="script.module.simplejson" version="3.3.0"/>
-        <import addon="script.module.trakt" version="2.1.1-beta"/>
+        <import addon="script.module.trakt" version="2.1.1~beta"/>
         <import addon="script.module.datutil" version="2.4.0"/>
 	</requires>
 	<extension point="xbmc.python.script" library="script.py">
@@ -219,7 +219,7 @@ Addons Included
 
 <addon id="script.module.trakt"
        name="trakt.py"
-       version="2.1.1-beta"
+       version="2.1.1~beta"
        provider-name="Fuzeman, Razzeee">
   <requires>
     <import addon="xbmc.python" version="2.1.0"/>
