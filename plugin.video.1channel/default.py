@@ -368,7 +368,10 @@ def PlaySource(url, title, video_type, primewire_url, resume, imdbnum='', year='
                 meta = __metaget__.get_meta('movie', title, year=year)
                 meta['title'] = utils.format_label_movie(meta)
     else: #metadata is not enabled
-        meta = {'label' : title, 'title' : title}
+        if video_type == 'episode':
+            meta = {'label': title, 'TVShowTitle': title, 'year': year, 'season': int(season), 'episode': int(episode), 'title': '%sx%s' % (season, episode)}
+        else:
+            meta = {'label' : title, 'title' : title, 'year': year}
 
     if dbid and int(dbid) > 0:
         #we're playing from a library item
@@ -643,9 +646,12 @@ def AddonMenu():  # homescreen
     if _1CH.get_setting('h99_hidden')=='true':
         _1CH.add_directory({'mode': MODES.FILTER_RESULTS, 'section': 'tv', 'sort': 'date'}, {'title': 'TV - Date added'},img=art('date_added.png'), fanart=art('fanart.png'))
         _1CH.add_directory({'mode': MODES.MANAGE_SUBS}, {'title': 'TV - Subscriptions'}, img=art('subscriptions.png'),fanart=art('fanart.png'))
+        add_search_item({'mode': MODES.SEARCH_QUERY, 'section': 'tv', 'next_mode': MODES.SEARCH}, 'TV - Search')
         _1CH.add_directory({'mode': MODES.FILTER_RESULTS, 'section': 'movie', 'sort': 'date'}, {'title': 'Movies - Date added'},img=art('date_added.png'), fanart=art('fanart.png'))
+        _1CH.add_directory({'mode': MODES.FILTER_RESULTS, 'section': 'movie', 'sort': 'release'},{'title': 'Movies - Date released'}, img=art('date_released.png'), fanart=art('fanart.png'))
         _1CH.add_directory({'mode': MODES.FILTER_RESULTS, 'section': 'movie', 'sort': 'featured'}, {'title': 'Movies - Featured'},img=art('featured.png'), fanart=art('fanart.png'))
         _1CH.add_directory({'mode': MODES.FILTER_RESULTS, 'section': 'movie', 'sort': 'views'}, {'title': 'Movies - Most Popular'},img=art('most_popular.png'), fanart=art('fanart.png'))
+        add_search_item({'mode': MODES.SEARCH_QUERY, 'section': 'movie', 'next_mode': MODES.SEARCH}, 'Movies - Search')
 
     
     if not xbmc.getCondVisibility('System.HasAddon(script.1channel.themepak)') and xbmc.getCondVisibility('System.HasAddon(plugin.program.addoninstaller)'):
@@ -656,6 +662,7 @@ def AddonMenu():  # homescreen
     _1CH.add_directory({'mode': MODES.HELP}, {'title': 'Help'}, img=art('help.png'), fanart=art('fanart.png'))
     # _1CH.add_directory({'mode': 'test'},   {'title':  'Test'}, img=art('settings.png'), fanart=art('fanart.png'))
     
+    utils.set_view('list', '%s-view' % ('default'))
     xbmcplugin.endOfDirectory(int(sys.argv[1]), cacheToDisc=False)
 
 @pw_dispatcher.register(MODES.INSTALL_THEMES)
@@ -706,6 +713,7 @@ def BrowseListMenu(section):
     add_search_item({'mode': MODES.DESC_QUERY, 'section': section, 'next_mode': MODES.SEARCH_DESC}, 'Search (+Description)')
     add_search_item({'mode': MODES.ADV_QUERY, 'section': section}, 'Search (Advanced Search)')
     
+    utils.set_view('list', '%s-view' % ('default'))
     xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
 @pw_dispatcher.register(MODES.PLAYLISTS_MENU)
@@ -724,6 +732,7 @@ def playlist_menu():
                            fanart=art('fanart.png'))
         _1CH.add_directory({'mode': MODES.BROWSE_PLAYLISTS, 'public': False, 'sort': 'hits'}, {'title': 'Personal Playlists (sorted by views)'}, img=art('personal_playlists_views.png'),
                            fanart=art('fanart.png'))
+    utils.set_view('list', '%s-view' % ('default'))
     xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
 @pw_dispatcher.register(MODES.BROWSE_PLAYLISTS, ['public'], ['sort', 'page'])
@@ -749,7 +758,7 @@ def browse_playlists(public,sort=None, page=None, paginate=True):
             {'mode': MODES.BROWSE_PLAYLISTS, 'public': public, 'sort': sort, 'page': next_page},
             meta, contextmenu_items=menu_items, context_replace=True, img=art('nextpage.png'), fanart=art('fanart.png'), is_folder=True)
     
-    utils.set_view(None, 'default-view')
+    utils.set_view('list', 'default-view')
     xbmcplugin.endOfDirectory(int(sys.argv[1]))
     
 @pw_dispatcher.register(MODES.SHOW_PLAYLIST, ['url', 'public'])
@@ -1068,11 +1077,9 @@ def build_listitem(section_params, title, year, img, resurl, imdbnum='', season=
         art=make_art(section_params['video_type'], meta, img)
         listitem=xbmcgui.ListItem(meta['title'], iconImage=art['thumb'], thumbnailImage=art['thumb'])
         listitem.setProperty('fanart_image', art['fanart'])
+        imdbnum = meta['imdb_id']
         try: listitem.setArt(art)
         except: pass # method doesn't exist in Frodo
-        listitem.setInfo('video', meta)
-        listitem.setProperty('imdb', meta['imdb_id'])
-        listitem.setProperty('img', img)
         
         # set tvshow episode counts
         if section_params['video_type']== 'tvshow' and 'episode' in meta:
@@ -1084,21 +1091,31 @@ def build_listitem(section_params, title, year, img, resurl, imdbnum='', season=
             listitem.setProperty('UnWatchedEpisodes', str(unwatched_episodes))
             
     else:  # Metadata off
+        temp_title =re.sub(' \(\d{4}\)$','',title)
+        meta = {'TVShowTitle': temp_title, 'tvshowtitle': temp_title, 'title': temp_title, 'year': year, 'premiered': year}
         if section_params['video_type'] == 'episode':
+            meta.update({'title': '', 'season': int(season), 'episode': int(episode)})
             if section_params['content'] == 'calendar':
-                disp_title = '[[COLOR deeppink]%s[/COLOR]] %s - S%02dE%02d' % (day, title, int(season), int(episode))
+                disp_title = '[[COLOR deeppink]%s[/COLOR]] %s - S%02dE%02d' % (day, temp_title, int(season), int(episode))
             else:
-                disp_title = '%sx%s' % (season, episode)
-            listitem = xbmcgui.ListItem(disp_title, iconImage=img,
-                                        thumbnailImage=img)
+                disp_title = utils.format_tvshow_episode(meta)
+                meta.update({'title': disp_title})
         else:
-            if year:
-                disp_title = '%s (%s)' % (title, year)
+            if section_params['video_type'] == 'tvshow':
+                if resurl in section_params['subs']:
+                    disp_title = utils.format_label_sub(meta)
+                else:
+                    disp_title = utils.format_label_tvshow(meta)
             else:
-                disp_title = title
-            listitem = xbmcgui.ListItem(disp_title, iconImage=img,
-                                        thumbnailImage=img)
+                disp_title = utils.format_label_movie(meta)
 
+        #print '|%s||%s||%s||%s|' % (temp_title, title, year, disp_title)
+        listitem = xbmcgui.ListItem(disp_title, iconImage=img,thumbnailImage=img)
+    
+    listitem.setProperty('imdb', imdbnum)
+    listitem.setInfo('video', meta)
+    listitem.setProperty('img', img)
+    
     # Hack resumetime & totaltime to prevent XBMC from popping up a resume dialog if a native bookmark is set. UGH! 
     listitem.setProperty('resumetime',str(0))
     listitem.setProperty('totaltime',str(1))
@@ -1583,10 +1600,10 @@ def write_strm(stream, path):
         except Exception, e:
             utils.log('Failed to create .strm file: %s\n%s' % (path, e), xbmc.LOGERROR)
     
-@pw_dispatcher.register(MODES.ADD_SUB, ['url', 'title', 'year'], ['img', 'imdbnum'])
-def add_subscription(url, title, year, img='', imdbnum=''):
+@pw_dispatcher.register(MODES.ADD_SUB, ['url', 'title'], ['year', 'img', 'imdbnum'])
+def add_subscription(url, title, year='', img='', imdbnum=''):
     try:
-        days=utils.get_default_days()
+        days = utils.get_default_days()
         if utils.using_pl_subs():
             pw_scraper.add_to_playlist(utils.get_subs_pl_url(), url)
             db_connection.add_ext_sub(SUB_TYPES.PW_PL, url, imdbnum, days)
