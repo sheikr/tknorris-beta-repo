@@ -1,27 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addons>
-<addon id="script.module.dateutil"
-       name="dateutil"
-       version="2.4.0"
-       provider-name="Gustavo Niemeyer, Tomi Pieviläinen, Yaron de Leeuw, Razzeee">
-  <requires>
-    <import addon="xbmc.python" version="2.1.0"/>
-  </requires>
-  <extension point="xbmc.python.module"
-             library="lib" />
-  <extension point="xbmc.addon.metadata">
-    <summary>dateutil - powerful extensions to datetime</summary>
-    <description>Packed for Kodi from https://github.com/dateutil/dateutil</description>
-    <platform>all</platform>
-    <language></language>
-    <license>Revised BSD License</license>
-    <forum></forum>
-    <website>https://dateutil.readthedocs.org/en/latest/</website>
-    <source>https://github.com/Razzeee/script.module.dateutil</source>
-    <email></email>
-  </extension>
-</addon>
-
 <!--suppress ALL -->
 <addon id="plugin.video.salts" version="0.0.68" name="Stream All The Sources" provider-name="tknorris">
     <requires>
@@ -192,53 +170,5 @@ Addons Included
 		<email></email>
 		<source>https://github.com/trakt/script.trakt</source>
 	</extension>
-</addon>
-
-<addon id="script.module.arrow"
-       name="arrow"
-       version="0.5.4"
-       provider-name="crsmithdev, Razzeee">
-  <requires>
-    <import addon="xbmc.python" version="2.1.0"/>
-	<import addon="script.module.dateutil" version="2.4.0"/>
-  </requires>
-  <extension point="xbmc.python.module"
-             library="lib" />
-  <extension point="xbmc.addon.metadata">
-    <summary>Arrow: better dates and times for Python</summary>
-    <description>Packed for Kodi from https://github.com/crsmithdev/arrow</description>
-    <platform>all</platform>
-    <language></language>
-    <license>Apache2</license>
-    <forum></forum>
-    <website>http://crsmithdev.com/arrow/</website>
-    <source>https://github.com/Razzeee/script.module.arrow</source>
-    <email>beenje AT gmail.com</email>
-  </extension>
-</addon>
-
-<addon id="script.module.trakt"
-       name="trakt.py"
-       version="2.1.1~beta"
-       provider-name="Fuzeman, Razzeee">
-  <requires>
-    <import addon="xbmc.python" version="2.1.0"/>
-	<import addon="script.module.requests" version="2.4.3"/>
-	<import addon="script.module.six" version="1.9.0"/>
-	<import addon="script.module.arrow" version="0.5.4"/>
-  </requires>
-  <extension point="xbmc.python.module"
-             library="lib" />
-  <extension point="xbmc.addon.metadata">
-    <summary>Python interface for the trakt.tv API</summary>
-    <description>Packed for Kodi from https://github.com/fuzeman/trakt.py</description>
-    <platform>all</platform>
-    <language></language>
-    <license>MIT</license>
-    <forum></forum>
-    <website>https://github.com/fuzeman/trakt.py</website>
-    <source>https://github.com/Razzeee/script.module.trakt</source>
-    <email></email>
-  </extension>
 </addon>
 </addons>
