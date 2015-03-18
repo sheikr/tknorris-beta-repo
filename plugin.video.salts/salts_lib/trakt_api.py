@@ -251,7 +251,13 @@ class Trakt_API():
         if rating is None:
             url = url + '/remove'
         else:
-            data[TRAKT_SECTIONS[section]][0].update({'rating': int(rating)})
+            # method only allows ratings one item at a time, so set rating on first item of each in list
+            if season and episode:
+                data[TRAKT_SECTIONS[section]][0]['seasons'][0]['episodes'][0].update({'rating': int(rating)})
+            elif season:
+                data[TRAKT_SECTIONS[section]][0]['seasons'][0].update({'rating': int(rating)})
+            else:
+                data[TRAKT_SECTIONS[section]][0].update({'rating': int(rating)})
 
         self.__call_trakt(url, data=data, cache_limit=0)
 
@@ -342,9 +348,9 @@ class Trakt_API():
                                 break
                             else:
                                 raise TransientTraktError('Temporary Trakt Error: ' + str(e))
-                        elif e.code == 401:
+                        elif e.code == 401 or e.code == 405:
                             if login_retry or url.endswith('login'):
-                                raise
+                                raise TraktError('Login Failed. Incorrect userid/password? (%s)' % (e.code))
                             else:
                                 self.token = self.login()
                                 xbmcaddon.Addon('plugin.video.salts').setSetting('trakt_token', self.token)

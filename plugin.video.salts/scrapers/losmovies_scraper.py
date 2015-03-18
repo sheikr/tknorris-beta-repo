@@ -23,7 +23,7 @@ import xbmcaddon
 from salts_lib.constants import VIDEO_TYPES
 from salts_lib.db_utils import DB_Connection
 
-BASE_URL = 'http://losmovies.tv'
+BASE_URL = 'http://losmovies.ch'
 
 class LosMovies_Scraper(scraper.Scraper):
     base_url = BASE_URL

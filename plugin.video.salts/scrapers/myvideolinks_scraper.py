@@ -71,13 +71,19 @@ class MyVidLinks_Scraper(scraper.Scraper):
         return hosters
 
     def __get_movie_links(self, video, views, html):
-        pattern = '<h1><span>([^<]+)'
+        pattern = '<h1>[^>]*>([^<]+)'
         match = re.search(pattern, html)
         q_str = ''
         if match:
             q_str = match.group(1)
+        
+        match = re.search('<p>Size:(.*)', html, re.DOTALL)
+        if match:
+            fragment = match.group(1)
+        else:
+            fragment = html
 
-        return self.__get_links(video, views, html, q_str)
+        return self.__get_links(video, views, fragment, q_str)
 
     def __get_episode_links(self, video, views, html):
         pattern = '<h4>(.*?)</h4>(.*?)</ul>'
@@ -90,7 +96,7 @@ class MyVidLinks_Scraper(scraper.Scraper):
     def __get_links(self, video, views, html, q_str):
         pattern = 'li>\s*<a\s+href="(http[^"]+)'
         hosters = []
-        for match in re.finditer(pattern, html):
+        for match in re.finditer(pattern, html, re.DOTALL):
             url = match.group(1)
             hoster = {'multi-part': False, 'class': self, 'views': views, 'url': url, 'rating': None, 'quality': None, 'direct': False}
             hoster['host'] = urlparse.urlsplit(url).hostname
@@ -155,7 +161,7 @@ class MyVidLinks_Scraper(scraper.Scraper):
         results = []
         filter_days = datetime.timedelta(days=int(xbmcaddon.Addon().getSetting('%s-filter' % (self.get_name()))))
         today = datetime.date.today()
-        pattern = '<h1><span><a\s+href="([^"]+)"\s+rel="bookmark"\s+title="([^"]+)'
+        pattern = '<h\d+>.*?<a\s+href="([^"]+)"\s+rel="bookmark"\s+title="([^"]+)'
         for match in re.finditer(pattern, html, re.DOTALL):
             url, title = match.groups('')
 

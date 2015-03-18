@@ -30,7 +30,7 @@ from addon.common.addon import Addon
 from salts_lib.db_utils import DB_Connection
 from salts_lib.url_dispatcher import URL_Dispatcher
 from salts_lib.srt_scraper import SRT_Scraper
-from salts_lib.trakt_api import Trakt_API, TransientTraktError, TraktNotFoundError
+from salts_lib.trakt_api import Trakt_API, TransientTraktError, TraktNotFoundError, TraktError
 from salts_lib import utils
 from salts_lib import log_utils
 from salts_lib.constants import *
@@ -1191,13 +1191,15 @@ def set_related_url(mode, video_type, title, year, slug, season='', episode='', 
 @url_dispatcher.register(MODES.RATE, ['section', 'id_type', 'show_id'], ['season', 'episode'])
 def rate_media(section, id_type, show_id, season='', episode=''):
     # disabled until fixes for rating are made in official addon
-    if False and id_type == 'imdb' and xbmc.getCondVisibility('System.HasAddon(script.trakt)'):
+    if id_type == 'imdb' and xbmc.getCondVisibility('System.HasAddon(script.trakt)'):
         run = 'RunScript(script.trakt, action=rate, media_type=%s, remoteid=%s'
         if section == SECTIONS.MOVIES:
             run = (run + ')') % ('movie', show_id)
         else:
             if season and episode:
                 run = (run + ', season=%s, episode=%s)') % ('episode', show_id, season, episode)
+            elif season:
+                run = (run + ', season=%s)') % ('season', show_id, season)
             else:
                 run = (run + ')') % ('show', show_id)
         xbmc.executebuiltin(run)
@@ -1694,6 +1696,11 @@ def make_season_item(season, info, slug, fanart):
         label = 'Mark as Watched'
 
     if TOKEN:
+        queries = {'mode': MODES.RATE, 'section': SECTIONS.TV, 'season': season['number'], 'id_type': 'slug', 'show_id': slug}
+        # TODO: For trakt addon rating debug purposes
+        #queries.update({'id_type': 'imdb', 'show_id': 'tt1520211'})
+        menu_items.append(('Rate on trakt.tv', 'RunPlugin(%s)' % (_SALTS.build_plugin_url(queries))),)
+
         queries = {'mode': MODES.TOGGLE_WATCHED, 'section': SECTIONS.TV, 'season': season['number'], 'id_type': 'slug', 'show_id': slug, 'watched': watched}
         menu_items.append((label, 'RunPlugin(%s)' % (_SALTS.build_plugin_url(queries))),)
 
@@ -1934,7 +1941,7 @@ def main(argv=None):
     try:
         mode = _SALTS.queries.get('mode', None)
         url_dispatcher.dispatch(mode, _SALTS.queries)
-    except TransientTraktError as e:
+    except (TransientTraktError, TraktError) as e:
         log_utils.log(str(e), xbmc.LOGERROR)
         builtin = 'XBMC.Notification(%s,%s, 5000, %s)'
         xbmc.executebuiltin(builtin % (_SALTS.get_name(), str(e), ICON_PATH))
