@@ -108,7 +108,7 @@ class traktService:
                 self._dispatch(data)
 
             if xbmc.Player().isPlayingVideo():
-                self.scrobbler.update()
+                self.scrobbler.update(startScrobble=True)
 
             xbmc.sleep(500)
 
@@ -162,9 +162,9 @@ class traktService:
 
             if action == 'rate':
                 if not 'rating' in data:
-                    rateMedia(media_type, summaryInfo)
+                    rateMedia(media_type, [summaryInfo])
                 else:
-                    rateMedia(media_type, summaryInfo, rating=data['rating'])
+                    rateMedia(media_type, [summaryInfo], rating=data['rating'])
         else:
             logger.debug("doManualRating(): Summary info was empty, possible problem retrieving data from Trakt.tv")
 
