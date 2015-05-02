@@ -33,44 +33,38 @@ from salts_lib.srt_scraper import SRT_Scraper
 from salts_lib.trakt_api import Trakt_API, TransientTraktError, TraktNotFoundError, TraktError
 from salts_lib import utils
 from salts_lib import log_utils
+from salts_lib import gui_utils
 from salts_lib.constants import *
 from scrapers import *  # import all scrapers into this namespace
 from scrapers import ScraperVideo
 
 _SALTS = Addon('plugin.video.salts', sys.argv)
 ICON_PATH = os.path.join(_SALTS.get_path(), 'icon.png')
-username = _SALTS.get_setting('username')
-password = _SALTS.get_setting('password')
-TOKEN = utils.get_trakt_token()
+TOKEN = _SALTS.get_setting('trakt_oauth_token')
 use_https = _SALTS.get_setting('use_https') == 'true'
 trakt_timeout = int(_SALTS.get_setting('trakt_timeout'))
 list_size = int(_SALTS.get_setting('list_size'))
 
-trakt_api = Trakt_API(username, password, TOKEN, use_https, list_size, trakt_timeout)
+trakt_api = Trakt_API(TOKEN, use_https, list_size, trakt_timeout)
 url_dispatcher = URL_Dispatcher()
 db_connection = DB_Connection()
 
 @url_dispatcher.register(MODES.MAIN)
 def main_menu():
     db_connection.init_database()
-    if not TOKEN:
-        remind_count = int(_SALTS.get_setting('remind_count'))
-        remind_max = 5
-        if remind_count < remind_max:
-            remind_count += 1
-            log_utils.log('Showing Config reminder')
-            builtin = 'XBMC.Notification(%s,(%s/%s) Configure Trakt Account for more options, 7500, %s)'
-            xbmc.executebuiltin(builtin % (_SALTS.get_name(), remind_count, remind_max, ICON_PATH))
-            _SALTS.set_setting('remind_count', str(remind_count))
-    else:
-        _SALTS.set_setting('remind_count', '0')
-
     if _SALTS.get_setting('auto-disable') != DISABLE_SETTINGS.OFF:
         utils.do_disable_check()
 
     _SALTS.add_directory({'mode': MODES.BROWSE, 'section': SECTIONS.MOVIES}, {'title': 'Movies'}, img=utils.art('movies.png'), fanart=utils.art('fanart.jpg'))
     _SALTS.add_directory({'mode': MODES.BROWSE, 'section': SECTIONS.TV}, {'title': 'TV Shows'}, img=utils.art('television.png'), fanart=utils.art('fanart.jpg'))
     _SALTS.add_directory({'mode': MODES.SETTINGS}, {'title': 'Settings'}, img=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
+
+    if not TOKEN:
+        last_reminder = int(_SALTS.get_setting('last_reminder'))
+        now = int(time.time())
+        if last_reminder >= 0 and last_reminder < now - (24 * 60 * 60):
+            gui_utils.get_pin()
+            
     xbmcplugin.endOfDirectory(int(sys.argv[1]), cacheToDisc=False)
 
 @url_dispatcher.register(MODES.SETTINGS)
@@ -78,6 +72,8 @@ def settings_menu():
     _SALTS.add_directory({'mode': MODES.SCRAPERS}, {'title': 'Scraper Sort Order'}, img=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
     _SALTS.add_directory({'mode': MODES.RES_SETTINGS}, {'title': 'Url Resolver Settings'}, img=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
     _SALTS.add_directory({'mode': MODES.ADDON_SETTINGS}, {'title': 'Add-on Settings'}, img=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
+    _SALTS.add_directory({'mode': MODES.AUTO_CONF}, {'title': 'Auto-Configure SALTS'}, img=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
+    _SALTS.add_directory({'mode': MODES.GET_PIN}, {'title': 'Authorize SALTS to access my trakt.tv account'}, img=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
     _SALTS.add_directory({'mode': MODES.SHOW_VIEWS}, {'title': 'Set Default Views'}, img=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
     _SALTS.add_directory({'mode': MODES.BROWSE_URLS}, {'title': 'Remove Cached Url(s)'}, img=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
     xbmcplugin.endOfDirectory(int(sys.argv[1]))
@@ -124,6 +120,37 @@ def resolver_settings():
 def addon_settings():
     _SALTS.show_settings()
 
+@url_dispatcher.register(MODES.GET_PIN)
+def get_pin():
+    gui_utils.get_pin()
+
+@url_dispatcher.register(MODES.AUTO_CONF)
+def auto_conf():
+    dialog = xbmcgui.Dialog()
+    line1 = 'This will set some settings to values that have been found to'
+    line2 = 'be effective. The following settings will be changed:'
+    line3 = '[COLOR red]Scraper Sort Order, Source Sorting, Calendar Start Day, Trakt Timeout, Scraper Timeout[/COLOR]'
+    ret = dialog.yesno('SALTS', line1, line2, line3, 'Go Back', 'Continue')
+    if ret:
+        _SALTS.set_setting('trakt_timeout', '60')
+        _SALTS.set_setting('calendar-day', '-1')
+        _SALTS.set_setting('source_timeout', '20')
+        _SALTS.set_setting('enable_sort', 'true')
+        _SALTS.set_setting('sort1_field', '2')
+        _SALTS.set_setting('sort2_field', '5')
+        _SALTS.set_setting('sort3_field', '1')
+        _SALTS.set_setting('sort4_field', '3')
+        _SALTS.set_setting('sort5_field', '4')
+        sso = ['Local', 'DirectDownload.tv', 'VKBox', 'NoobRoom', 'movietv.to', 'stream-tv.co', 'streamallthis.is', 'GVCenter', 'hdtvshows.net', 'clickplay.to', 'IceFilms',
+               'ororo.tv', 'hdmz', 'niter.tv', 'yify.tv', 'MovieNight', 'cmz', 'viooz.ac', 'view47', 'MoviesHD', 'OnlineMovies', 'MoviesOnline7', 'wmo.ch', 'zumvo.com',
+               'alluc.com', 'MyVideoLinks.eu', 'OneClickWatch', 'RLSSource.net', 'TVRelease.Net', 'FilmStreaming.in', 'PrimeWire', 'CartoonHD', 'WatchFree.to', 'pftv',
+               'wso.ch', 'WatchSeries', 'SolarMovie', 'UFlix.org', 'ch131', 'moviestorm.eu', 'vidics.ch', 'Movie4K', 'LosMovies', 'MerDB', 'iWatchOnline', '2movies',
+               'iStreamHD', 'afdah', 'filmikz.ch', 'movie25']
+        db_connection.set_setting('source_sort_order', '|'.join(sso))
+        builtin = "XBMC.Notification(%s,Auto-configure Complete, 2000, %s)" % (_SALTS.get_name(), ICON_PATH)
+        xbmc.executebuiltin(builtin)
+        
+    
 @url_dispatcher.register(MODES.BROWSE, ['section'])
 def browse_menu(section):
     if section == SECTIONS.TV:
@@ -155,8 +182,8 @@ def browse_menu(section):
 #     if TOKEN:
 #         if utils.menu_on('friends'): add_refresh_item({'mode': MODES.FRIENDS, 'section': section}, 'Friends Activity [COLOR red][I](Temporarily Broken)[/I][/COLOR]', utils.art('friends.png'), utils.art('fanart.jpg'))
     if utils.menu_on('search'): _SALTS.add_directory({'mode': MODES.SEARCH, 'section': section}, {'title': 'Search'}, img=utils.art(search_img), fanart=utils.art('fanart.jpg'))
-    if utils.menu_on('search'): add_recent_search({'mode': MODES.RECENT_SEARCH, 'section': section}, utils.art(search_img))
-    if utils.menu_on('search'): _SALTS.add_directory({'mode': MODES.SAVED_SEARCHES, 'section': section}, {'title': 'Saved Searches'}, img=utils.art(search_img), fanart=utils.art('fanart.jpg'))
+    if utils.menu_on('search'): add_search_item({'mode': MODES.RECENT_SEARCH, 'section': section}, utils.art(search_img), 'Recent Searches', MODES.CLEAR_RECENT)
+    if utils.menu_on('search'): add_search_item({'mode': MODES.SAVED_SEARCHES, 'section': section}, utils.art(search_img), 'Saved Searches', MODES.CLEAR_SAVED)
     xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
 def add_refresh_item(queries, label, thumb, fanart):
@@ -169,12 +196,12 @@ def add_refresh_item(queries, label, thumb, fanart):
     liz.addContextMenuItems(menu_items)
     xbmcplugin.addDirectoryItem(int(sys.argv[1]), _SALTS.build_plugin_url(queries), liz, isFolder=True)
 
-def add_recent_search(queries, thumb):
-    liz = xbmcgui.ListItem('Recent Searches', iconImage=thumb, thumbnailImage=thumb)
+def add_search_item(queries, thumb, title, clear_mode):
+    liz = xbmcgui.ListItem(title, iconImage=thumb, thumbnailImage=thumb)
     liz.setProperty('fanart_image', utils.art('fanart.jpg'))
     menu_items = []
-    menu_queries = {'mode': MODES.CLEAR_RECENT, 'section': queries['section']}
-    menu_items.append(('Clear All Recent', 'RunPlugin(%s)' % (_SALTS.build_plugin_url(menu_queries))),)
+    menu_queries = {'mode': clear_mode, 'section': queries['section']}
+    menu_items.append(('Clear All %s' % (title), 'RunPlugin(%s)' % (_SALTS.build_plugin_url(menu_queries))),)
     liz.addContextMenuItems(menu_items)
     xbmcplugin.addDirectoryItem(int(sys.argv[1]), _SALTS.build_plugin_url(queries), liz, isFolder=True)
     
@@ -773,6 +800,14 @@ def save_search(section, query):
 def delete_search(search_id):
     db_connection.delete_search(search_id)
     xbmc.executebuiltin("XBMC.Container.Refresh")
+
+@url_dispatcher.register(MODES.CLEAR_SAVED, ['section'])
+def clear_saved(section):
+    for search in db_connection.get_searches(section):
+        db_connection.delete_search(search[0])
+
+    builtin = 'XBMC.Notification(%s,Saved %s Searches Cleared , 2500, %s)'
+    xbmc.executebuiltin(builtin % (_SALTS.get_name(), section, ICON_PATH))
 
 @url_dispatcher.register(MODES.SEARCH_RESULTS, ['section', 'query'], ['page'])
 def search_results(section, query, page=1):

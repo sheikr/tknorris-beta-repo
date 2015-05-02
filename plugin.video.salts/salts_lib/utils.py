@@ -1,3 +1,20 @@
+"""
+    SALTS XBMC Addon
+    Copyright (C) 2015 tknorris
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
 import os
 import time
 import _strptime
@@ -28,12 +45,6 @@ SORT_FIELDS = [(SORT_LIST[int(ADDON.get_setting('sort1_field'))], SORT_SIGNS[ADD
                 (SORT_LIST[int(ADDON.get_setting('sort4_field'))], SORT_SIGNS[ADDON.get_setting('sort4_order')]),
                 (SORT_LIST[int(ADDON.get_setting('sort5_field'))], SORT_SIGNS[ADDON.get_setting('sort5_order')])]
 
-username = ADDON.get_setting('username')
-password = ADDON.get_setting('password')
-token = ADDON.get_setting('trakt_token')
-use_https = ADDON.get_setting('use_https') == 'true'
-trakt_timeout = int(ADDON.get_setting('trakt_timeout'))
-list_size = int(ADDON.get_setting('list_size'))
 last_check = datetime.datetime.fromtimestamp(0)
 
 P_MODE = int(ADDON.get_setting('parallel_mode'))
@@ -52,7 +63,11 @@ elif P_MODE == P_MODES.PROCESSES:
         builtin = 'XBMC.Notification(%s,Process Mode not supported on this platform falling back to Thread Mode, 7500, %s)'
         xbmc.executebuiltin(builtin % (ADDON.get_name(), ICON_PATH))
 
-trakt_api = Trakt_API(username, password, token, use_https, list_size, trakt_timeout)
+TOKEN = ADDON.get_setting('trakt_oauth_token')
+use_https = ADDON.get_setting('use_https') == 'true'
+trakt_timeout = int(ADDON.get_setting('trakt_timeout'))
+list_size = int(ADDON.get_setting('list_size'))
+trakt_api = Trakt_API(TOKEN, use_https, list_size, trakt_timeout)
 db_connection = DB_Connection()
 
 THEME_LIST = ['Shine', 'Luna_Blue', 'Iconic']
@@ -610,29 +625,6 @@ def iso_2_utc(iso_ts):
     except: seconds = delta.seconds + delta.days * 24 * 3600  # close enough
     return seconds
 
-def get_trakt_token():
-    username = ADDON.get_setting('username')
-    password = ADDON.get_setting('password')
-    token = ADDON.get_setting('trakt_token')
-    last_hash = ADDON.get_setting('last_hash')
-    cur_hash = hashlib.md5(username + password).hexdigest()
-
-    if not token or cur_hash != last_hash:
-        try:
-            token = trakt_api.login()
-            log_utils.log('Token Returned: %s' % (token), xbmc.LOGDEBUG)
-        except Exception as e:
-            log_utils.log('Login Failed: %s' % (e), xbmc.LOGWARNING)
-            builtin = 'XBMC.Notification(%s,Login Failed: %s, 7500, %s)'
-            xbmc.executebuiltin(builtin % (ADDON.get_name(), e, ICON_PATH))
-            token = ''
-
-        if token:
-            ADDON.set_setting('last_hash', cur_hash)
-
-    ADDON.set_setting('trakt_token', token)
-    return token
-
 def format_sub_label(sub):
     label = '%s - [%s] - (' % (sub['language'], sub['version'])
     if sub['completed']:
@@ -792,7 +784,10 @@ def get_current_view():
 
 def bookmark_exists(slug, season, episode):
     if ADDON.get_setting('trakt_bookmark') == 'true':
-        bookmark = trakt_api.get_bookmark(slug, season, episode)
+        if TOKEN:
+            bookmark = trakt_api.get_bookmark(slug, season, episode)
+        else:
+            bookmark = None
         return bookmark is not None
     else:
         return db_connection.bookmark_exists(slug, season, episode)
@@ -810,7 +805,10 @@ def get_resume_choice(slug, season, episode):
 
 def get_bookmark(slug, season, episode):
     if ADDON.get_setting('trakt_bookmark') == 'true':
-        bookmark = trakt_api.get_bookmark(slug, season, episode)
+        if TOKEN:
+            bookmark = trakt_api.get_bookmark(slug, season, episode)
+        else:
+            bookmark = None
     else:
         bookmark = db_connection.get_bookmark(slug, season, episode)
     return bookmark
