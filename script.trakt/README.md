@@ -70,12 +70,13 @@ or
 * If not, create a new issue and provide as much data about your system as possible, a logfile will also be needed.
 
 ####Creating logfiles
-* To create a logfile, enable the debug setting in Kodi AND script.trakt, otherwise the logfile won't show any data from script.trakt. Check the Kodi documentation if you don't know where your logfile can be found.
+* To create a logfile, enable the debug setting in Kodi AND script.trakt, otherwise the logfile won't show any data from script.trakt. Check the [Kodi documentation] (http://kodi.wiki/view/Log_file) if you don't know where your logfile can be found.
 
 ###Contribute
 
 ####Pull requests
-* Please make your pull requests on the branch named "dev" only.
+* Please make your pull requests on the branch named "dev" only. 
+* Please don't add pull requests for translation updates these have to go work their way through the translation workflow (see [Translations](#translations))
 
 ####Translations
 * Translations are done via the Transifex project of Kodi. If you want to support translation efforts, read [this] (http://kodi.wiki/view/Translation_System) and look for script-trakt under the XBMC Addons project in Transifex.
