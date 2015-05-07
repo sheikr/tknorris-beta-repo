@@ -35,7 +35,7 @@
 				<label>Trakt Account Authorization</label>
 				<align>center</align>
 				<aligny>center</aligny>
-				<textcolor>selected</textcolor>
+				<textcolor>darkorange</textcolor>
 				<shadowcolor>black</shadowcolor>
 			</control>
 			<control type="button">
@@ -59,15 +59,14 @@
 				<posy>60</posy>
 				<width>450</width>
 				<height>150</height>
-				<font>font12_title</font>
+				<font>font12</font>
 				<wrapmultiline>true</wrapmultiline>
-				<label>SALTS can be used without a trakt.tv account, but to take full advantage of SALTS you should authorize it to access your trakt.tv account.
-
-To authorize SALTS to access your trakt.tv account:
-1) Visit [COLOR blue]http://trakt.tv/pin/347[/COLOR] or scan the QR Code below
+				<label>To authorize SALTS to access your trakt.tv account:
+1) Visit [COLOR blue]http://trakt.tv/pin/347[/COLOR] or scan the QR Code below.
 2) If prompted, authorize SALTS to access your account.
-3) Lastly, enter the PIN shown:
-				</label>
+3) Enter the PIN provided in the box below.
+
+SALTS can be used without a trakt.tv account, but to take full advantage of SALTS you should authorize it to access your trakt.tv account.</label>
 				<textcolor>white</textcolor>
 				<shadowcolor>black</shadowcolor>
 			</control>
@@ -86,25 +85,27 @@ To authorize SALTS to access your trakt.tv account:
 				<description>Authorize Button</description>
 				<posx>30</posx>
 				<posy>460</posy>
-				<width>140</width>
+				<width>130</width>
 				<height>40</height>
 				<align>center</align>
 				<aligny>center</aligny>
 				<label>Authorize</label>
 				<font>font12_title</font>
+				<textoffsetx>10</textoffsetx>
 				<ondown>201</ondown>
 				<onright>201</onright>
 			</control>
 			<control type="button" id="201">
 				<description>Later Button</description>
-				<posx>180</posx>
+				<posx>170</posx>
 				<posy>460</posy>
-				<width>150</width>
+				<width>170</width>
 				<height>40</height>
 				<align>center</align>
 				<aligny>center</aligny>
 				<label>Remind Me Later</label>
 				<font>font12_title</font>
+				<textoffsetx>10</textoffsetx>
 				<onup>200</onup>
 				<onleft>200</onleft>
 				<ondown>202</ondown>
@@ -112,14 +113,15 @@ To authorize SALTS to access your trakt.tv account:
 			</control>
 			<control type="button" id="202">
 				<description>Never Button</description>
-				<posx>340</posx>
+				<posx>350</posx>
 				<posy>460</posy>
-				<width>140</width>
+				<width>130</width>
 				<height>40</height>
 				<align>center</align>
 				<aligny>center</aligny>
 				<label>No Thanks</label>
 				<font>font12_title</font>
+				<textoffsetx>10</textoffsetx>
 				<onup>201</onup>
 				<onleft>201</onleft>
 			</control>
