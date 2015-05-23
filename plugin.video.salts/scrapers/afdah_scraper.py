@@ -22,7 +22,6 @@ import re
 import xbmcaddon
 import string
 from salts_lib.constants import VIDEO_TYPES
-from salts_lib.db_utils import DB_Connection
 from salts_lib.constants import QUALITIES
 BASE_URL = 'http://afdah.tv'
 
@@ -31,7 +30,6 @@ class Afdah_Scraper(scraper.Scraper):
 
     def __init__(self, timeout=scraper.DEFAULT_TIMEOUT):
         self.timeout = timeout
-        self.db_connection = DB_Connection()
         self.base_url = xbmcaddon.Addon().getSetting('%s-base_url' % (self.get_name()))
 
     @classmethod
@@ -71,7 +69,6 @@ class Afdah_Scraper(scraper.Scraper):
                         plaintext = self._caesar(r.group(1).decode('base-64'), 13).decode('base-64')
                 else:
                     plaintext = embed_html
-                print plaintext
                 hosters += self._get_links(plaintext)
             
             pattern = 'href="([^"]+)".*play_video.gif'

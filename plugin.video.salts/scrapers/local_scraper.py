@@ -25,12 +25,10 @@ from salts_lib.constants import VIDEO_TYPES
 from salts_lib.constants import QUALITIES
 from salts_lib.constants import SORT_KEYS
 
-from salts_lib.db_utils import DB_Connection
 BASE_URL = ''
 
 class Local_Scraper(scraper.Scraper):
     def __init__(self, timeout=scraper.DEFAULT_TIMEOUT):
-        self.db_connection = DB_Connection()
         self.base_url = xbmcaddon.Addon().getSetting('%s-base_url' % (self.get_name()))
         self.def_quality = int(xbmcaddon.Addon().getSetting('%s-def-quality' % (self.get_name())))
 
@@ -126,7 +124,7 @@ class Local_Scraper(scraper.Scraper):
     def get_settings(cls):
         settings = super(Local_Scraper, cls).get_settings()
         name = cls.get_name()
-        settings.append('         <setting id="%s-def-quality" type="enum" label="     Default Quality" values="None|Low|Medium|High|HD" default="0" visible="eq(-6,true)"/>' % (name))
+        settings.append('         <setting id="%s-def-quality" type="enum" label="     Default Quality" values="None|Low|Medium|High|HD720|HD1080" default="0" visible="eq(-6,true)"/>' % (name))
         return settings
 
     def search(self, video_type, title, year):

@@ -21,7 +21,6 @@ import urlparse
 import re
 import xbmcaddon
 from salts_lib.constants import VIDEO_TYPES
-from salts_lib.db_utils import DB_Connection
 
 BASE_URL = 'https://afdah.org'
 INFO_URL = BASE_URL + '/video_info'
@@ -31,7 +30,6 @@ class AfdahOrg_Scraper(scraper.Scraper):
 
     def __init__(self, timeout=scraper.DEFAULT_TIMEOUT):
         self.timeout = timeout
-        self.db_connection = DB_Connection()
         self.base_url = xbmcaddon.Addon().getSetting('%s-base_url' % (self.get_name()))
 
     @classmethod
@@ -60,7 +58,6 @@ class AfdahOrg_Scraper(scraper.Scraper):
                 data = {'video_id': video_id}
                 html = self._http_get(INFO_URL, data=data, cache_limit=0)
                 sources = self.__parse_fmt(html)
-                print sources
                 for width in sources:
                     hoster = {'multi-part': False, 'host': 'afdah.org', 'class': self, 'quality': self._width_get_quality(width), 'views': None, 'rating': None, 'url': sources[width], 'direct': True}
                     hosters.append(hoster)

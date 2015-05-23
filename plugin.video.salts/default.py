@@ -866,48 +866,45 @@ def get_sources(mode, video_type, title, year, slug, season='', episode='', ep_t
     begin = time.time()
     fails = {}
     got_timeouts = False
-    with gui_utils.ProgressDialog('Getting All Sources', utils.make_progress_msg(video_type, title, year, season, episode)) as pd:
-        for cls in utils.relevant_scrapers(video_type):
-            if utils.P_MODE == P_MODES.NONE:
-                hosters += cls(max_timeout).get_sources(video)
-                if max_results > 0 and len(hosters) >= max_results:
-                    break
-            else:
-                worker = utils.start_worker(q, utils.parallel_get_sources, [cls, video])
-                utils.increment_setting('%s_try' % (cls.get_name()))
-                worker_count += 1
-                workers.append(worker)
-                fails[cls.get_name()] = True
-    
-        # collect results from workers
-        if utils.P_MODE != P_MODES.NONE:
-            total = worker_count
-            while worker_count > 0:
-                try:
-                    log_utils.log('Calling get with timeout: %s' % (timeout), xbmc.LOGDEBUG)
-                    result = q.get(True, timeout)
-                    log_utils.log('Got %s Source Results' % (len(result['hosters'])), xbmc.LOGDEBUG)
-                    worker_count -= 1
-                    hosters += result['hosters']
-                    del fails[result['name']]
-                    progress = (total - worker_count) * 100 / total
-                    pd.update(progress, line2='Received %s links from %s' % (len(result['hosters']), result['name']))
-                    if max_timeout > 0:
-                        timeout = max_timeout - (time.time() - begin)
-                        if timeout < 0: timeout = 0
-                except utils.Empty:
-                    log_utils.log('Get Sources Process Timeout', xbmc.LOGWARNING)
-                    utils.record_timeouts(fails)
-                    got_timeouts = True
-                    break
-    
-                if max_results > 0 and len(hosters) >= max_results:
-                    log_utils.log('Exceeded max results: %s/%s' % (max_results, len(hosters)))
-                    break
-    
-            else:
-                got_timeouts = False
-                log_utils.log('All source results received')
+    for cls in utils.relevant_scrapers(video_type):
+        scraper = cls(max_timeout)
+        if utils.P_MODE == P_MODES.NONE:
+            hosters += scraper.get_sources(video)
+            if max_results > 0 and len(hosters) >= max_results:
+                break
+        else:
+            worker = utils.start_worker(q, utils.parallel_get_sources, [scraper, video])
+            utils.increment_setting('%s_try' % (cls.get_name()))
+            worker_count += 1
+            workers.append(worker)
+            fails[cls.get_name()] = True
+
+    # collect results from workers
+    if utils.P_MODE != P_MODES.NONE:
+        while worker_count > 0:
+            try:
+                log_utils.log('Calling get with timeout: %s' % (timeout), xbmc.LOGDEBUG)
+                result = q.get(True, timeout)
+                log_utils.log('Got %s Source Results' % (len(result['hosters'])), xbmc.LOGDEBUG)
+                worker_count -= 1
+                hosters += result['hosters']
+                del fails[result['name']]
+                if max_timeout > 0:
+                    timeout = max_timeout - (time.time() - begin)
+                    if timeout < 0: timeout = 0
+            except utils.Empty:
+                log_utils.log('Get Sources Process Timeout', xbmc.LOGWARNING)
+                utils.record_timeouts(fails)
+                got_timeouts = True
+                break
+
+            if max_results > 0 and len(hosters) >= max_results:
+                log_utils.log('Exceeded max results: %s/%s' % (max_results, len(hosters)))
+                break
+
+        else:
+            got_timeouts = False
+            log_utils.log('All source results received')
 
     total = len(workers)
     timeouts = len(fails)
@@ -1162,27 +1159,29 @@ def set_related_url(mode, video_type, title, year, slug, season='', episode='', 
     if max_timeout == 0: timeout = None
     worker_count = 0
     workers = []
+    fails = {}
     if utils.P_MODE != P_MODES.NONE: q = utils.Queue()
     begin = time.time()
     video = ScraperVideo(video_type, title, year, slug, season, episode, ep_title, ep_airdate)
     with gui_utils.ProgressDialog('Set Related Url', utils.make_progress_msg(video_type, title, year, season, episode)) as pd:
-        for cls in utils.relevant_scrapers(video_type, order_matters=True):
+        scrapers = utils.relevant_scrapers(video_type, order_matters=True)
+        total = len(scrapers)
+        result_count = 0
+        for cls in scrapers:
+            scraper = cls(max_timeout)
             if utils.P_MODE == P_MODES.NONE:
-                related = {}
-                related['class'] = cls(max_timeout)
-                url = related['class'].get_url(video)
+                url = scraper.get_url(video)
                 if not url: url = ''
-                related['url'] = url
-                related['name'] = related['class'].get_name()
-                related['label'] = '[%s] %s' % (related['name'], related['url'])
-                related_list.append(related)
+                result_count += 1
+                pd.update(result_count * 100 / total, line2='Received result from: %s' % (scraper.get_name()))
             else:
-                worker = utils.start_worker(q, utils.parallel_get_url, [cls, video])
+                url = ''
+                worker = utils.start_worker(q, utils.parallel_get_url, [scraper, video])
                 utils.increment_setting('%s_try' % (cls.get_name()))
                 worker_count += 1
                 workers.append(worker)
-                related = {'class': cls(max_timeout), 'name': cls.get_name(), 'label': '[%s]' % (cls.get_name()), 'url': ''}
-                related_list.append(related)
+            related = {'class': scraper, 'url': url, 'name': cls.get_name(), 'label': '[%s] %s' % (cls.get_name(), url)}
+            related_list.append(related)
     
         # collect results from workers
         if utils.P_MODE != P_MODES.NONE:

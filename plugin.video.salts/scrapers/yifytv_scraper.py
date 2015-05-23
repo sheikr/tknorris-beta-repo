@@ -24,7 +24,6 @@ import xbmcaddon
 import xbmc
 from salts_lib import log_utils
 from salts_lib.constants import VIDEO_TYPES
-from salts_lib.db_utils import DB_Connection
 from salts_lib.constants import QUALITIES
 
 BASE_URL = 'http://yify.tv'
@@ -35,7 +34,6 @@ class YIFY_Scraper(scraper.Scraper):
 
     def __init__(self, timeout=scraper.DEFAULT_TIMEOUT):
         self.timeout = timeout
-        self.db_connection = DB_Connection()
         self.base_url = xbmcaddon.Addon().getSetting('%s-base_url' % (self.get_name()))
 
     @classmethod
@@ -81,10 +79,11 @@ class YIFY_Scraper(scraper.Scraper):
                 else:
                     return None
 
+            best_width = 0
             for elem in js_data:
-                if 'type' in elem and elem['type'].startswith('video'):
+                if 'type' in elem and elem['type'].startswith('video') and elem['width'] > best_width:
                     stream_url = elem['url']
-                    break
+                    best_width = elem['width']
                 if 'jscode' in elem:
                     stream_url = self.__parse_fmt(elem['jscode'])
                     break

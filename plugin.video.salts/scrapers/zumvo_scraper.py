@@ -25,7 +25,6 @@ import base64
 from salts_lib import GKDecrypter
 from salts_lib import log_utils
 from salts_lib.constants import VIDEO_TYPES
-from salts_lib.db_utils import DB_Connection
 from salts_lib.constants import QUALITIES
 
 BASE_URL = 'http://zumvo.me'
@@ -37,7 +36,6 @@ class Zumvo_Scraper(scraper.Scraper):
 
     def __init__(self, timeout=scraper.DEFAULT_TIMEOUT):
         self.timeout = timeout
-        self.db_connection = DB_Connection()
         self.base_url = xbmcaddon.Addon().getSetting('%s-base_url' % (self.get_name()))
 
     @classmethod
@@ -78,9 +76,7 @@ class Zumvo_Scraper(scraper.Scraper):
                 if match:
                     proxy_link = match.group(1)
                     proxy_link = proxy_link.split('*', 1)[-1]
-                    print proxy_link
                     stream_url = GKDecrypter.decrypter(198, 128).decrypt(proxy_link, base64.urlsafe_b64decode('NlFQU1NQSGJrbXJlNzlRampXdHk='), 'ECB').split('\0')[0]
-                    print stream_url
                     if 'picasaweb' in stream_url:
                         html = self._http_get(stream_url, cache_limit=.5)
                         sources = self.__parse_google(html)
