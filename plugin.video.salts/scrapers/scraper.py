@@ -234,6 +234,8 @@ class Scraper(object):
             request.add_unredirected_header('Referer', referer)
             for key in headers: request.add_header(key, headers[key])
             response = urllib2.urlopen(request, timeout=timeout)
+            if xbmcaddon.Addon().getSetting('cookie_debug') == 'true':
+                log_utils.log('Response Cookies: %s' % (self.cookies_as_str(cj)), xbmc.LOGDEBUG)
             cj.save(ignore_discard=True, ignore_expires=True)
             if response.info().get('Content-Encoding') == 'gzip':
                 buf = StringIO(response.read())
@@ -254,15 +256,34 @@ class Scraper(object):
         cj = cookielib.LWPCookieJar(cookie_file)
         opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
         urllib2.install_opener(opener)
+
+        try: cj.load(ignore_discard=True)
+        except: pass
+        if xbmcaddon.Addon().getSetting('cookie_debug') == 'true':
+            log_utils.log('Before Cookies: %s' % (self.cookies_as_str(cj)), xbmc.LOGDEBUG)
         for key in cookies:
             c = cookielib.Cookie(0, key, cookies[key], port=None, port_specified=False, domain=domain, domain_specified=True,
                                 domain_initial_dot=False, path='/', path_specified=True, secure=False, expires=None, discard=False, comment=None,
                                 comment_url=None, rest={})
             cj.set_cookie(c)
-        try: cj.load(ignore_discard=True)
-        except: pass
+        cj.save(ignore_discard=True, ignore_expires=True)
+        if xbmcaddon.Addon().getSetting('cookie_debug') == 'true':
+            log_utils.log('After Cookies: %s' % (self.cookies_as_str(cj)), xbmc.LOGDEBUG)
         return cj
 
+    def cookies_as_str(self, cj):
+        s = ''
+        c = cj._cookies
+        for domain in c:
+            s += '{%s: ' % (domain)
+            for path in c[domain]:
+                s += '{%s: ' % (path)
+                for cookie in c[domain][path]:
+                    s += '{%s=%s}' % (cookie, c[domain][path][cookie].value)
+                s += '}'
+            s += '} '
+        return s
+                    
     def _do_recaptcha(self, key, tries=None, max_tries=None):
         challenge_url = CAPTCHA_BASE_URL + '/challenge?k=%s' % (key)
         html = self._cached_http_get(challenge_url, CAPTCHA_BASE_URL, timeout=DEFAULT_TIMEOUT, cache_limit=0)
@@ -412,23 +433,21 @@ class Scraper(object):
             if not results and fallback_search:
                 results = self.search(video.video_type, fallback_search, video.year)
             if results:
+                # TODO: First result isn't always the most recent...
                 if select == 0:
                     best_result = results[0]
                 else:
                     best_qorder = 0
-                    best_qstr = ''
                     for result in results:
                         match = re.search('\[(.*)\]$', result['title'])
                         if match:
                             q_str = match.group(1)
                             quality = self._blog_get_quality(video, q_str, '')
                             # print 'result: |%s|%s|%s|%s|' % (result, q_str, quality, Q_ORDER[quality])
-                            if Q_ORDER[quality] >= best_qorder:
-                                if Q_ORDER[quality] > best_qorder or (quality == QUALITIES.HD and '1080' in q_str and '1080' not in best_qstr):
-                                    # print 'Setting best as: |%s|%s|%s|%s|' % (result, q_str, quality, Q_ORDER[quality])
-                                    best_qstr = q_str
-                                    best_result = result
-                                    best_qorder = Q_ORDER[quality]
+                            if Q_ORDER[quality] > best_qorder:
+                                # print 'Setting best as: |%s|%s|%s|%s|' % (result, q_str, quality, Q_ORDER[quality])
+                                best_result = result
+                                best_qorder = Q_ORDER[quality]
 
                 url = best_result['url']
                 self.db_connection.set_related_url(video.video_type, video.title, video.year, self.get_name(), url)
@@ -476,8 +495,10 @@ class Scraper(object):
 
     def _width_get_quality(self, width):
         width = int(width)
-        if width >= 1280:
-            quality = QUALITIES.HD
+        if width > 1280:
+            quality = QUALITIES.HD1080
+        elif width > 800:
+            quality = QUALITIES.HD720
         elif width > 640:
             quality = QUALITIES.HIGH
         elif width > 320:
@@ -488,8 +509,10 @@ class Scraper(object):
 
     def _height_get_quality(self, height):
         height = int(height)
-        if height > 480:
-            quality = QUALITIES.HD
+        if height > 800:
+            quality = QUALITIES.HD1080
+        elif height > 480:
+            quality = QUALITIES.HD720
         elif height >= 400:
             quality = QUALITIES.HIGH
         elif height > 200:

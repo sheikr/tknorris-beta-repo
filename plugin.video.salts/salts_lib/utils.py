@@ -70,13 +70,14 @@ list_size = int(ADDON.get_setting('list_size'))
 trakt_api = Trakt_API(TOKEN, use_https, list_size, trakt_timeout)
 db_connection = DB_Connection()
 
-THEME_LIST = ['Shine', 'Luna_Blue', 'Iconic']
+THEME_LIST = ['Shine', 'Luna_Blue', 'Iconic', 'Simple']
 THEME = THEME_LIST[int(ADDON.get_setting('theme'))]
 if xbmc.getCondVisibility('System.HasAddon(script.salts.themepak)'):
     themepak_path = xbmcaddon.Addon('script.salts.themepak').getAddonInfo('path')
 else:
     themepak_path = ADDON.get_path()
 THEME_PATH = os.path.join(themepak_path, 'art', 'themes', THEME)
+PLACE_POSTER = os.path.join(ADDON.get_path(), 'resources', 'place_poster.png')
 
 def art(name):
     return os.path.join(THEME_PATH, name)
@@ -326,7 +327,7 @@ def filter_quality(video_type, hosters):
     if qual_filter == 0:
         return hosters
     elif qual_filter == 1:
-        keep_qual = [QUALITIES.HD]
+        keep_qual = [QUALITIES.HD720, QUALITIES.HD1080]
     else:
         keep_qual = [QUALITIES.LOW, QUALITIES.MEDIUM, QUALITIES.HIGH]
 
@@ -921,3 +922,10 @@ def sort_progress(episodes, sort_order):
         return sorted(episodes, key=lambda x: iso_2_utc(x['episode']['first_aired']), reverse=True)
     else:  # default sort set to activity
         return sorted(episodes, key=lambda x: x['last_watched_at'], reverse=True)
+
+def make_progress_msg(video_type, title, year, season, episode):
+    progress_msg = '%s: %s' % (video_type, title)
+    if year: progress_msg += ' (%s)' % (year)
+    if video_type == VIDEO_TYPES.EPISODE:
+        progress_msg += ' - S%02dE%02d' % (int(season), int(episode))
+    return progress_msg
