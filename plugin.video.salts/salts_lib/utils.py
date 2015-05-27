@@ -27,11 +27,10 @@ import xbmcaddon
 import xbmcvfs
 import log_utils
 import sys
-import hashlib
 import urlparse
-import shutil
 import urllib
 from constants import *
+from trans_utils import i18n
 from scrapers import *  # import all scrapers into this namespace
 from addon.common.addon import Addon
 from trakt_api import Trakt_API
@@ -70,7 +69,8 @@ list_size = int(ADDON.get_setting('list_size'))
 trakt_api = Trakt_API(TOKEN, use_https, list_size, trakt_timeout)
 db_connection = DB_Connection()
 
-THEME_LIST = ['Shine', 'Luna_Blue', 'Iconic', 'Simple', 'SALTy']
+THEME_LIST = ['Shine', 'Luna_Blue', 'Iconic', 'Simple', 'SALTy', 'SALTy (Blended)', 'SALTy (Blue)', 'SALTy (Frog)', 'SALTy (Green)',
+              'SALTy (Macaw)', 'SALTier (Green)', 'SALTier (Orange)', 'SALTier (Red)', 'IGDB']
 THEME = THEME_LIST[int(ADDON.get_setting('theme'))]
 if xbmc.getCondVisibility('System.HasAddon(script.salts.themepak)'):
     themepak_path = xbmcaddon.Addon('script.salts.themepak').getAddonInfo('path')
@@ -78,6 +78,11 @@ else:
     themepak_path = ADDON.get_path()
 THEME_PATH = os.path.join(themepak_path, 'art', 'themes', THEME)
 PLACE_POSTER = os.path.join(ADDON.get_path(), 'resources', 'place_poster.png')
+
+def notify(header=None, msg='', duration=2000):
+    if header is None: header = ADDON.get_name()
+    builtin = "XBMC.Notification(%s,%s, %s, %s)" % (header, msg, duration, ICON_PATH)
+    xbmc.executebuiltin(builtin)
 
 def art(name):
     path = os.path.join(THEME_PATH, name)
@@ -93,12 +98,11 @@ def choose_list(username=None):
     if username is None: lists.insert(0, {'name': 'watchlist', 'ids': {'slug': WATCHLIST_SLUG}})
     if lists:
         dialog = xbmcgui.Dialog()
-        index = dialog.select('Pick a list', [list_data['name'] for list_data in lists])
+        index = dialog.select(i18n('pick_a_list'), [list_data['name'] for list_data in lists])
         if index > -1:
             return lists[index]['ids']['slug']
     else:
-        builtin = 'XBMC.Notification(%s,No Lists exist for user: %s, 5000, %s)'
-        xbmc.executebuiltin(builtin % (ADDON.get_name(), username, ICON_PATH))
+        notify(msg=i18n('no_lists_for_user') % (username), duration=5000)
 
 def show_id(show):
     queries = {}
@@ -285,11 +289,18 @@ def get_section_params(section):
         section_params['folder'] = True
         section_params['video_type'] = VIDEO_TYPES.TVSHOW
         section_params['content_type'] = CONTENT_TYPES.TVSHOWS
+        section_params['search_img'] = 'television_search.png'
+        section_params['label_plural'] = i18n('tv_shows')
+        section_params['label_single'] = i18n('tv_show')
     else:
         section_params['next_mode'] = MODES.GET_SOURCES
         section_params['folder'] = ADDON.get_setting('source-win') == 'Directory' and ADDON.get_setting('auto-play') == 'false'
         section_params['video_type'] = VIDEO_TYPES.MOVIE
         section_params['content_type'] = CONTENT_TYPES.MOVIES
+        section_params['search_img'] = 'movies_search.png'
+        section_params['label_plural'] = i18n('movies')
+        section_params['label_single'] = i18n('movie')
+
     return section_params
 
 def filename_from_title(title, video_type, year=None):
@@ -725,14 +736,13 @@ def do_disable_check():
             if success_rate < disable_thresh:
                 if auto_disable == DISABLE_SETTINGS.ON:
                     ADDON.set_setting('%s-enable' % (cls.get_name()), 'false')
-                    builtin = "XBMC.Notification(%s,[COLOR blue]%s[/COLOR] Scraper Automatically Disabled, 5000, %s)" % (ADDON.get_name(), cls.get_name(), ICON_PATH)
-                    xbmc.executebuiltin(builtin)
+                    notify(msg='[COLOR blue]%s[/COLOR] %s' % (i18n('scraper_disabled')), duration=5000)
                 elif auto_disable == DISABLE_SETTINGS.PROMPT:
                     dialog = xbmcgui.Dialog()
-                    line1 = 'The [COLOR blue]%s[/COLOR] scraper timed out on [COLOR red]%s%%[/COLOR] of %s requests' % (cls.get_name(), 100 - success_rate, tries)
-                    line2 = 'Each timeout wastes system resources and time.'
-                    line3 = '([I]If you keep it enabled, consider increasing the scraper timeout.[/I])'
-                    ret = dialog.yesno('SALTS', line1, line2, line3, 'Keep Enabled', 'Disable It')
+                    line1 = i18n('disable_line1') % (cls.get_name(), 100 - success_rate, tries)
+                    line2 = i18n('disable_line2')
+                    line3 = i18n('disable_line3')
+                    ret = dialog.yesno('SALTS', line1, line2, line3, i18n('keep_enabled'), i18n('disable_it'))
                     if ret:
                         ADDON.set_setting('%s-enable' % (cls.get_name()), 'false')
 
@@ -797,12 +807,12 @@ def bookmark_exists(slug, season, episode):
 def get_resume_choice(slug, season, episode):
     if ADDON.get_setting('trakt_bookmark') == 'true':
         resume_point = '%s%%' % (trakt_api.get_bookmark(slug, season, episode))
-        header = 'Trakt Bookmark Exists'
+        header = i18n('trakt_bookmark_exists')
     else:
         resume_point = format_time(db_connection.get_bookmark(slug, season, episode))
-        header = 'Local Bookmark Exists'
-    question = 'Resume from %s' % (resume_point)
-    return xbmcgui.Dialog().yesno(header, question, '', '', 'Start from beginning', 'Resume') == 1
+        header = i18n('local_bookmark_exists')
+    question = i18n('resume_from') % (resume_point)
+    return xbmcgui.Dialog().yesno(header, question, '', '', i18n('start_from_beginning'), i18n('resume')) == 1
 
 def get_bookmark(slug, season, episode):
     if ADDON.get_setting('trakt_bookmark') == 'true':
@@ -845,7 +855,7 @@ def download_media(url, path, file_name):
                 try: xbmcvfs.mkdirs(path)
                 except: os.mkdir(path)
             except Exception as e:
-                raise Exception('Failed to create directory')
+                raise Exception(i18n('failed_create_dir'))
 
         file_desc = xbmcvfs.File(full_path, 'w')
         total_len = 0
@@ -855,7 +865,7 @@ def download_media(url, path, file_name):
             else:
                 dialog = xbmcgui.DialogProgressBG()
 
-            dialog.create('Stream All The Sources', 'Downloading: %s...' % (file_name))
+            dialog.create('Stream All The Sources', i18n('downloading') % (file_name))
             dialog.update(0)
         while True:
             data = response.read(CHUNK_SIZE)
@@ -867,7 +877,7 @@ def download_media(url, path, file_name):
 
             total_len += len(data)
             if not file_desc.write(data):
-                raise Exception('Failed to write file')
+                raise Exception('failed_write_file')
 
             percent_progress = (total_len) * 100 / content_length if content_length > 0 else 0
             log_utils.log('Position : %s / %s = %s%%' % (total_len, content_length, percent_progress), xbmc.LOGDEBUG)
@@ -876,8 +886,7 @@ def download_media(url, path, file_name):
             elif progress == PROGRESS.BACKGROUND:
                 dialog.update(percent_progress, 'Stream All The Sources')
         else:
-            builtin = 'XBMC.Notification(%s,Download Complete: %s, 5000, %s)'
-            xbmc.executebuiltin(builtin % (ADDON.get_name(), file_name, ICON_PATH))
+            notify(msg=i18n('download_complete') % (file_name), duration=5000)
             log_utils.log('Download Complete: %s -> %s' % (url, full_path), xbmc.LOGDEBUG)
 
         file_desc.close()
@@ -885,10 +894,8 @@ def download_media(url, path, file_name):
             dialog.close()
 
     except Exception as e:
-        msg = 'Error (%s) during download: %s' % (str(e), file_name)
         log_utils.log('Error (%s) during download: %s -> %s' % (str(e), url, file_name), xbmc.LOGERROR)
-        builtin = 'XBMC.Notification(%s,%s, 5000, %s)'
-        xbmc.executebuiltin(builtin % (ADDON.get_name(), msg, ICON_PATH))
+        notify(msg=i18n('download_error') % (str(e), file_name), duration=5000)
 
 def get_extension(url, response):
     filename = url2name(url)
