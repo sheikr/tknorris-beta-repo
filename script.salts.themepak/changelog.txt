@@ -1,3 +1,8 @@
+[B]Version 0.0.4[/B]
+- Add additional DK Themes
+- Update Iconic Images
+- Add IGDB Theme
+
 [B]Version 0.0.3[/B]
 - Added SALTy theme
 - Fix some images
