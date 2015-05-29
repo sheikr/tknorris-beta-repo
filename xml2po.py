@@ -31,20 +31,34 @@ def main(argv=None):
     if sys.argv: argv = sys.argv
     
     out_file = 'strings.po'
+    lang = 'en'
     if len(argv) > 2:
-        in_file = sys.argv[2]
+        in_file = argv[2]
         if len(argv) > 3:
-            out_file = sys.argv[3]
+            lang = argv[3]
+            if len(argv) > 4:
+                out_file = argv[4]
     else:
         print 'need english xml'
 
     eng_file = argv[1]
     trans = get_translations(in_file)
     
-    print 'Converting: %s to %s using %s as english reference' % (in_file, out_file, eng_file)
+    print 'Converting: %s to %s (in %s) using %s as english reference' % (in_file, out_file, lang, eng_file)
     tree = ET.parse(eng_file)
     root = tree.getroot()
     with open(out_file, 'w') as f:
+        f.write('msgid ""\n')
+        f.write('msgstr ""\n')
+        f.write('"Project-Id-Version: TV Addons Addons\\n"\n')
+        f.write('"POT-Creation-Date: YEAR-MO-DA HO:MI+ZONE\\n"\n')
+        f.write('"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\\n"\n')
+        f.write('"Language-Team: \\n"\n')
+        f.write('"MIME-Version: 1.0\\n"\n')
+        f.write('"Content-Type: text/plain; charset=UTF-8\\n"\n')
+        f.write('"Content-Transfer-Encoding: 8bit\\n"\n')
+        f.write('"Language: %s\\n"\n' % (lang))
+        f.write('"Plural-Forms: nplurals=2; plural=(n != 1);\\n"\n\n')
         for string in root:
             msgctxt = string.attrib['id']
             msgid = string.text
