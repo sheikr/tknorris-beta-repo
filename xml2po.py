@@ -49,11 +49,14 @@ def main(argv=None):
             msgctxt = string.attrib['id']
             msgid = string.text
             if msgid is None: msgid = ''
-            if eng_file == in_file or trans[msgctxt] is None:
+            if eng_file == in_file:
                 translation = ''
             else:
                 if msgctxt in trans:
-                    translation = trans[msgctxt]
+                    if trans[msgctxt] is None:
+                        translation = ''
+                    else:
+                        translation = trans[msgctxt]
                 else:
                     continue  # skip untranslated entries
 
