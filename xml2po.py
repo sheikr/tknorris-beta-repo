@@ -57,7 +57,7 @@ def main(argv=None):
                 else:
                     continue  # skip untranslated entries
 
-            print '%s - %s --> %s' % (msgctxt, msgid, translation)
+            #print '%s - %s --> %s' % (msgctxt, msgid, translation)
             f.write('msgctxt "#%s"\n' % (msgctxt))
             f.write('msgid "%s"\n' % (msgid))
             f.write('msgstr "%s"\n\n' % (translation.encode('utf-8')))
