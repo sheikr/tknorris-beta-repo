@@ -48,12 +48,16 @@ def main(argv=None):
         for string in root:
             msgctxt = string.attrib['id']
             msgid = string.text
-            f.write('msgctxt "#%s"\n' % (msgctxt))
-            f.write('msgid "%s"\n' % (msgid))
             if eng_file == in_file:
                 translation = ''
             else:
-                translation = trans[msgctxt]
+                if msgctxt in trans:
+                    translation = trans[msgctxt]
+                else:
+                    continue  # skip untranslated entries
+
+            f.write('msgctxt "#%s"\n' % (msgctxt))
+            f.write('msgid "%s"\n' % (msgid))
             f.write('msgstr "%s"\n\n' % (translation))
         
 
