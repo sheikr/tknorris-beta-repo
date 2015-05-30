@@ -156,7 +156,7 @@ Addons Included
     </extension>
 </addon>
 
-<addon id="script.trakt" name="Trakt" version="3.0.2~beta2" provider-name="Trakt.tv">
+<addon id="script.trakt" name="Trakt" version="3.0.2~beta3" provider-name="Trakt.tv">
 	<requires>
 		<import addon="xbmc.python" version="2.14.0"/>
 		<import addon="script.module.simplejson" version="3.3.0"/>
