@@ -26,6 +26,7 @@ import xbmc
 import xbmcvfs
 import urllib2
 import urlresolver
+import json
 from addon.common.addon import Addon
 from salts_lib.db_utils import DB_Connection
 from salts_lib.url_dispatcher import URL_Dispatcher
@@ -142,8 +143,8 @@ def auto_conf():
         _SALTS.set_setting('sort4_field', '3')
         _SALTS.set_setting('sort5_field', '4')
         sso = ['Local', 'DirectDownload.tv', 'VKBox', 'NoobRoom', 'movietv.to', 'stream-tv.co', 'streamallthis.is', 'GVCenter', 'hdtvshows.net', 'clickplay.to', 'IceFilms',
-               'ororo.tv', 'afdah.org', 'hdmz', 'niter.tv', 'yify.tv', 'MovieNight', 'cmz', 'viooz.ac', 'view47', 'MoviesHD', 'OnlineMovies', 'MoviesOnline7', 'wmo.ch', 'zumvo.com',
-               'alluc.com', 'MyVideoLinks.eu', 'OneClickWatch', 'RLSSource.net', 'TVRelease.Net', 'FilmStreaming.in', 'PrimeWire', 'CartoonHD', 'WatchFree.to', 'pftv',
+               'ororo.tv', 'afdah.org', 'xmovies8', 'hdmz', 'niter.tv', 'yify.tv', 'MovieNight', 'cmz', 'viooz.ac', 'view47', 'MoviesHD', 'OnlineMovies', 'MoviesOnline7', 'wmo.ch', 
+               'zumvo.com', 'alluc.com', 'MyVideoLinks.eu', 'OneClickWatch', 'RLSSource.net', 'TVRelease.Net', 'FilmStreaming.in', 'PrimeWire', 'CartoonHD', 'WatchFree.to', 'pftv',
                'wso.ch', 'WatchSeries', 'SolarMovie', 'UFlix.org', 'ch131', 'moviestorm.eu', 'vidics.ch', 'Movie4K', 'LosMovies', 'MerDB', 'iWatchOnline', '2movies',
                'iStreamHD', 'afdah', 'filmikz.ch', 'movie25']
         db_connection.set_setting('source_sort_order', '|'.join(sso))
@@ -612,6 +613,7 @@ def get_progress(cache_override=False):
 @url_dispatcher.register(MODES.SHOW_PROGRESS)
 def show_progress():
     try:
+        workers = []
         workers, progress = get_progress()
         for episode in progress:
             log_utils.log('Episode: Sort Keys: Tile: |%s| Last Watched: |%s| Percent: |%s%%| Completed: |%s|' % (episode['show']['title'], episode['last_watched_at'], episode['percent_completed'], episode['completed']), xbmc.LOGDEBUG)
@@ -1023,6 +1025,7 @@ def play_source(mode, hoster_url, video_type, slug, season='', episode=''):
 
             ep_meta = trakt_api.get_episode_details(slug, season, episode)
             show_meta = trakt_api.get_show_details(slug)
+            win.setProperty('script.trakt.ids', json.dumps(show_meta['ids']))
             people = trakt_api.get_people(SECTIONS.TV, slug) if _SALTS.get_setting('include_people') == 'true' else None
             info = utils.make_info(ep_meta, show_meta, people)
             images = {}
@@ -1037,13 +1040,14 @@ def play_source(mode, hoster_url, video_type, slug, season='', episode=''):
             path = _SALTS.get_setting('movie-download-folder')
             file_name = utils.filename_from_title(slug, video_type)
 
-            item = trakt_api.get_movie_details(slug)
+            movie_meta = trakt_api.get_movie_details(slug)
+            win.setProperty('script.trakt.ids', json.dumps(movie_meta['ids']))
             people = trakt_api.get_people(SECTIONS.MOVIES, slug) if _SALTS.get_setting('include_people') == 'true' else None
-            info = utils.make_info(item, people=people)
-            art = utils.make_art(item)
+            info = utils.make_info(movie_meta, people=people)
+            art = utils.make_art(movie_meta)
 
-            path = make_path(path, video_type, item['title'], item['year'])
-            file_name = utils.filename_from_title(item['title'], video_type, item['year'])
+            path = make_path(path, video_type, movie_meta['title'], movie_meta['year'])
+            file_name = utils.filename_from_title(movie_meta['title'], video_type, movie_meta['year'])
     except TransientTraktError as e:
         log_utils.log('During Playback: %s' % (str(e)), xbmc.LOGWARNING)  # just log warning if trakt calls fail and leave meta and art blank
 
