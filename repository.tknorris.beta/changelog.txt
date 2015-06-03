@@ -1,3 +1,6 @@
+[B]Version 1.0.2[/B]
+- Added TVA Common Repo
+
 [B]Version 1.0.1[/B]
 - Added icon
 
