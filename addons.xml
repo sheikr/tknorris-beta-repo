@@ -58,13 +58,13 @@
     </extension>
 </addon>
 
-<addon id="repository.tknorris.beta" name="tknorris Beta Testing Repository" version="1.0.2" provider-name="tknorris">
-    <dir>
-        <info compressed="false">https://offshoregit.com/tvaresolvers/tva-common-repository/raw/master/addons.xml</info>
-        <checksum>https://offshoregit.com/tvaresolvers/tva-common-repository/raw/master/addons.xml.md5</checksum>
-        <datadir zip="true">https://offshoregit.com/tvaresolvers/tva-common-repository/raw/master/zips/</datadir>
-    </dir>
+<addon id="repository.tknorris.beta" name="tknorris Beta Testing Repository" version="1.0.3" provider-name="tknorris">
     <extension point="xbmc.addon.repository" name="tknorris beta testing repository">
+	    <dir>
+	        <info compressed="false">https://offshoregit.com/tvaresolvers/tva-common-repository/raw/master/addons.xml</info>
+	        <checksum>https://offshoregit.com/tvaresolvers/tva-common-repository/raw/master/addons.xml.md5</checksum>
+	        <datadir zip="true">https://offshoregit.com/tvaresolvers/tva-common-repository/raw/master/zips/</datadir>
+	    </dir>
         <info compressed="false">https://github.com/tknorris/tknorris-beta-repo/raw/master/addons.xml</info>
         <checksum>https://github.com/tknorris/tknorris-beta-repo/raw/master/addons.xml.md5</checksum>
         <datadir zip="true">https://github.com/tknorris/tknorris-beta-repo/raw/master/zips/</datadir>
