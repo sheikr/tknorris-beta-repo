@@ -31,6 +31,7 @@ import gzip
 import datetime
 from salts_lib import log_utils
 from salts_lib.trans_utils import i18n
+from salts_lib import cloudflare
 from salts_lib.db_utils import DB_Connection
 from salts_lib.constants import VIDEO_TYPES
 from salts_lib.constants import USER_AGENT
@@ -228,7 +229,7 @@ class Scraper(object):
 
         return url
 
-    def _cached_http_get(self, url, base_url, timeout, cookies=None, data=None, headers=None, cache_limit=8):
+    def _cached_http_get(self, url, base_url, timeout, cookies=None, data=None, multipart_data=None, headers=None, cache_limit=8):
         if cookies is None: cookies = {}
         if timeout == 0: timeout = None
         if headers is None: headers = {}
@@ -243,6 +244,10 @@ class Scraper(object):
         try:
             cj = self._set_cookies(base_url, cookies)
             if data is not None: data = urllib.urlencode(data, True)
+            if multipart_data is not None:
+                headers['Content-Type'] = 'multipart/form-data; boundary=X-X-X'
+                data = multipart_data
+
             request = urllib2.Request(url, data=data)
             request.add_header('User-Agent', USER_AGENT)
             request.add_unredirected_header('Host', request.get_host())
@@ -258,6 +263,14 @@ class Scraper(object):
                 html = f.read()
             else:
                 html = response.read()
+        except urllib2.HTTPError as e:
+            if e.code == 503 and 'cf-browser-verification' in e.read():
+                html = cloudflare.solve(url, cj)
+                if not html:
+                    return ''
+            else:
+                log_utils.log('Error (%s) during scraper http get: %s' % (str(e), url), xbmc.LOGWARNING)
+                return ''
         except Exception as e:
             log_utils.log('Error (%s) during scraper http get: %s' % (str(e), url), xbmc.LOGWARNING)
             return ''
