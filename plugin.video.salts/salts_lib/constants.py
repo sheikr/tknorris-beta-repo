@@ -31,7 +31,7 @@ MODES = __enum(MAIN='main', BROWSE='browse', TRENDING='trending', RECOMMEND='rec
            URL_EXISTS='url_exists', RECENT_SEARCH='recent_search', SAVED_SEARCHES='saved_searches', SAVE_SEARCH='save_search', DELETE_SEARCH='delete_search', SET_VIEW='set_view',
            SETTINGS='settings', SHOW_VIEWS='show_views', BROWSE_VIEW='browse_view', BROWSE_URLS='browse_urls', DELETE_URL='delete_url', DOWNLOAD_SOURCE='download_source',
            DIRECT_DOWNLOAD='direct_download', POPULAR='popular', RECENT='recent', DELETE_RECENT='delete_recent', CLEAR_RECENT='clear_recent', GET_PIN='get_pin',
-           AUTO_CONF='auto_config', CLEAR_SAVED='clear_saved')
+           AUTO_CONF='auto_config', CLEAR_SAVED='clear_saved', RESET_BASE_URL='reset_base_url')
 SECTIONS = __enum(TV='TV', MOVIES='Movies')
 VIDEO_TYPES = __enum(TVSHOW='TV Show', MOVIE='Movie', EPISODE='Episode', SEASON='Season')
 CONTENT_TYPES = __enum(TVSHOWS='tvshows', MOVIES='movies', SEASONS='seasons', EPISODES='episodes')
@@ -73,7 +73,7 @@ BLOG_Q_MAP[QUALITIES.HD1080] = ['1080']
 HOST_Q = {}
 HOST_Q[QUALITIES.LOW] = ['youwatch', 'allmyvideos', 'played.to', 'gorillavid']
 HOST_Q[QUALITIES.MEDIUM] = ['primeshare', 'exashare', 'bestreams', 'flashx', 'vidto', 'vodlocker', 'thevideo', 'vidzi', 'vidbull', 'realvid', 'nosvideo', 'daclips', 'sharerepo', 'zalaa']
-HOST_Q[QUALITIES.HIGH] = ['vidspot', 'mrfile', 'divxstage', 'streamcloud', 'mooshare']
+HOST_Q[QUALITIES.HIGH] = ['vidspot', 'mrfile', 'divxstage', 'streamcloud', 'mooshare', 'novamov']
 HOST_Q[QUALITIES.HD720] = ['thefile', 'sharesix', 'filenuke', 'vidxden', 'movshare', 'nowvideo']
 HOST_Q[QUALITIES.HD1080] = ['hugefiles', '180upload', 'mightyupload']
 

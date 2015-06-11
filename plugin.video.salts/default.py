@@ -27,6 +27,7 @@ import xbmcvfs
 import urllib2
 import urlresolver
 import json
+import xml.etree.ElementTree as ET
 from addon.common.addon import Addon
 from salts_lib.db_utils import DB_Connection
 from salts_lib.url_dispatcher import URL_Dispatcher
@@ -75,6 +76,7 @@ def settings_menu():
     _SALTS.add_directory({'mode': MODES.RES_SETTINGS}, {'title': i18n('url_resolver_settings')}, img=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
     _SALTS.add_directory({'mode': MODES.ADDON_SETTINGS}, {'title': i18n('addon_settings')}, img=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
     _SALTS.add_directory({'mode': MODES.AUTO_CONF}, {'title': i18n('auto_config')}, img=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
+    _SALTS.add_directory({'mode': MODES.RESET_BASE_URL}, {'title': i18n('reset_base_url')}, img=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
     _SALTS.add_directory({'mode': MODES.GET_PIN}, {'title': i18n('auth_salts')}, img=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
     _SALTS.add_directory({'mode': MODES.SHOW_VIEWS}, {'title': i18n('set_default_views')}, img=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
     _SALTS.add_directory({'mode': MODES.BROWSE_URLS}, {'title': i18n('remove_cached_urls')}, img=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
@@ -125,6 +127,19 @@ def addon_settings():
 def get_pin():
     gui_utils.get_pin()
 
+@url_dispatcher.register(MODES.RESET_BASE_URL)
+def reset_base_url():
+    xml_path = os.path.join(_SALTS.get_path(), 'resources', 'settings.xml')
+    tree = ET.parse(xml_path)
+    for category in tree.getroot().findall('category'):
+        if category.get('label').startswith('Scrapers '):
+            for setting in category.findall('setting'):
+                if setting.get('id').endswith('-base_url'):
+                    log_utils.log('Resetting: %s -> %s' % (setting.get('id'), setting.get('default')), xbmc.LOGDEBUG)
+                    _SALTS.set_setting(setting.get('id'), setting.get('default'))
+
+    utils.notify(msg=i18n('reset_complete'))
+
 @url_dispatcher.register(MODES.AUTO_CONF)
 def auto_conf():
     dialog = xbmcgui.Dialog()
@@ -142,11 +157,11 @@ def auto_conf():
         _SALTS.set_setting('sort3_field', '1')
         _SALTS.set_setting('sort4_field', '3')
         _SALTS.set_setting('sort5_field', '4')
-        sso = ['Local', 'DirectDownload.tv', 'VKBox', 'NoobRoom', 'yify-streaming', 'stream-tv.co', 'streamallthis.is', 'GVCenter', 'hdtvshows.net', 'clickplay.to', 'IceFilms',
-               'ororo.tv', 'afdah.org', 'xmovies8', 'hdmz', 'niter.tv', 'yify.tv', 'movietv.to', 'MovieNight', 'cmz', 'viooz.ac', 'view47', 'MoviesHD', 'OnlineMovies', 'MoviesOnline7', 'wmo.ch',
-               'zumvo.com', 'alluc.com', 'MyVideoLinks.eu', 'OneClickWatch', 'tubemotion', 'RLSSource.net', 'TVRelease.Net', 'FilmStreaming.in', 'PrimeWire', 'CartoonHD', 'WatchFree.to',
-               'pftv', 'wso.ch', 'WatchSeries', 'SolarMovie', 'UFlix.org', 'ch131', 'moviestorm.eu', 'vidics.ch', 'Movie4K', 'LosMovies', 'MerDB', 'iWatchOnline', '2movies',
-               'iStreamHD', 'afdah', 'filmikz.ch', 'movie25']
+        sso = ['Local', 'DirectDownload.tv', 'VKBox', 'NoobRoom', 'yify-streaming', 'stream-tv.co', 'streamallthis.is', 'PlayBox', 'GVCenter', 'clickplay.to', 'IceFilms', 'ororo.tv', 'afdah.org',
+                'xmovies8', 'Flixanity', 'hdmz', 'niter.tv', 'yify.tv', 'movietv.to', 'MintMovies', 'MovieNight', 'cmz', 'viooz.ac', 'view47', 'MoviesHD', 'OnlineMovies', 'MoviesOnline7',
+                'wmo.ch', 'zumvo.com', 'alluc.com', 'MyVideoLinks.eu', 'OneClickWatch', 'tubemotion', 'RLSSource.net', 'TVRelease.Net', 'FilmStreaming.in', 'PrimeWire', 'WatchFree.to',
+               'pftv', 'wso.ch', 'WatchSeries', 'SolarMovie', 'UFlix.org', 'ch131', 'moviestorm.eu', 'vidics.ch', 'Movie4K', 'LosMovies', 'MerDB', 'iWatchOnline', '2movies', 'iStreamHD', 'afdah',
+               'filmikz.ch', 'movie25']
         db_connection.set_setting('source_sort_order', '|'.join(sso))
         utils.notify(msg=i18n('auto_conf_complete'))
     
