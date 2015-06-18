@@ -159,7 +159,7 @@ def auto_conf():
         _SALTS.set_setting('sort5_field', '4')
         sso = ['Local', 'DirectDownload.tv', 'VKBox', 'NoobRoom', 'yify-streaming', 'stream-tv.co', 'streamallthis.is', 'PlayBox', 'GVCenter', 'Shush.se', 'clickplay.to', 'IceFilms', 'ororo.tv',
                'afdah.org', 'xmovies8', 'Flixanity', 'hdmz', 'niter.tv', 'yify.tv', 'movietv.to', 'MintMovies', 'MovieNight', 'cmz', 'viooz.ac', 'view47', 'MoviesHD', 'OnlineMovies', 'MoviesOnline7',
-                'wmo.ch', 'zumvo.com', 'alluc.com', 'MyVideoLinks.eu', 'OneClickWatch', 'tubemotion', 'RLSSource.net', 'TVRelease.Net', 'FilmStreaming.in', 'PrimeWire', 'WatchFree.to',
+                'wmo.ch', 'zumvo.com', 'alluc.com', 'MyVideoLinks.eu', 'OneClickWatch', 'RLSSource.net', 'TVRelease.Net', 'FilmStreaming.in', 'PrimeWire', 'WatchFree.to',
                'pftv', 'wso.ch', 'WatchSeries', 'SolarMovie', 'UFlix.org', 'ch131', 'moviestorm.eu', 'vidics.ch', 'Movie4K', 'LosMovies', 'MerDB', 'iWatchOnline', '2movies', 'iStreamHD', 'afdah',
                'filmikz.ch', 'movie25']
         db_connection.set_setting('source_sort_order', '|'.join(sso))
@@ -816,7 +816,7 @@ def browse_seasons(slug, fanart):
     seasons = sorted(trakt_api.get_seasons(slug), key=lambda x: x['number'])
     info = {}
     if TOKEN:
-        progress = trakt_api.get_show_progress(slug, cached=_SALTS.get_setting('cache_watched') == 'true')
+        progress = trakt_api.get_show_progress(slug, hidden=True, specials=True, cached=_SALTS.get_setting('cache_watched') == 'true')
         info = utils.make_seasons_info(progress)
 
     totalItems = len(seasons)
@@ -834,7 +834,7 @@ def browse_episodes(slug, season):
     show = trakt_api.get_show_details(slug)
     episodes = trakt_api.get_episodes(slug, season)
     if TOKEN:
-        progress = trakt_api.get_show_progress(slug, cached=_SALTS.get_setting('cache_watched') == 'true')
+        progress = trakt_api.get_show_progress(slug, hidden=True, specials=True, cached=_SALTS.get_setting('cache_watched') == 'true')
         episodes = utils.make_episodes_watched(episodes, progress)
 
     totalItems = len(episodes)
@@ -950,13 +950,16 @@ def get_sources(mode, video_type, title, year, slug, season='', episode='', ep_t
 def filter_unusable_hosters(hosters):
     filtered_hosters = []
     filter_max = int(_SALTS.get_setting('filter_unusable'))
+    unk_hosts = {}
     for i, hoster in enumerate(hosters):
         if i < filter_max and 'direct' in hoster and hoster['direct'] == False:
             hmf = urlresolver.HostedMediaFile(host=hoster['host'], media_id='dummy')  # use dummy media_id to force host validation
             if not hmf:
                 log_utils.log('Unusable source %s (%s) from %s' % (hoster['url'], hoster['host'], hoster['class'].get_name()), xbmc.LOGINFO)
+                unk_hosts[hoster['host']] = unk_hosts.get(hoster['host'], 0) + 1
                 continue
         filtered_hosters.append(hoster)
+    log_utils.log('Discarded Hosts: %s' % (sorted(unk_hosts.items(), key=lambda x: x[1], reverse=True)), xbmc.LOGDEBUG)
     return filtered_hosters
 
 @url_dispatcher.register(MODES.RESOLVE_SOURCE, ['mode', 'class_url', 'video_type', 'slug', 'class_name'], ['season', 'episode'])

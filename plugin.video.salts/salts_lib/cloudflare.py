@@ -1,6 +1,6 @@
 
 #
-#      Copyright (C) 2015 tknorris (Derived from Mikey1234's)
+#      Copyright (C) 2015 tknorris (Derived from Mikey1234's & Lambda's)
 #
 #  This Program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -25,72 +25,16 @@
 import re
 import urllib2
 import urlparse
-from types import *
 import log_utils
 import xbmc
 from salts_lib.constants import USER_AGENT
 
-indent = -1
-
-def getNested(s, delim=("(", ")")):
-        level = 0
-        pos = 0
-        for c in s:
-                pos += 1
-                if c == delim[0]:
-                        level += 1
-                elif c == delim[1]:
-                        level -= 1
-                if level == -1:
-                        return pos - 1
-        log_utils.log("Couldn't find matching - level: %s" % (level), xbmc.LOGWARNING)
-        return s
-
-def solveEquation(q):
-        global indent
-        indent += 1
-        pos = 0
-        res = 0
-        stringify = False
-        if q[0] == "!":
-                stringify = True
-        while pos < len(q):
-                if q[pos] == "(":
-                        nested = getNested(q[pos + 1: len(q)])
-                        nres = solveEquation(q[pos + 1:pos + 1 + nested])
-                        if type(nres) is StringType and type(res) is not StringType:
-                                res = str(res) + nres
-                        elif type(res) == StringType and type(nres) is IntType:
-                                res = res + str(nres)
-                        else:
-                                res += nres
-                        pos += nested + 1
-                elif q[pos] == ")":
-                        pass
-                        pos += 1
-                elif q[pos:pos + 4] == "!+[]":
-                        res += 1
-                        pos += 4
-                elif q[pos:pos + 5] == "+!![]":
-                        res += 1
-                        pos += 5
-                elif q[pos:pos + 3] == "+[]":
-                        pos += 3
-                elif q[pos:pos + 2] == "+(":
-                        pos += 1
-                # we dont care about whitespaces
-                elif q[pos] == " ":
-                        pos += 1
-                elif q[pos] == "\t":
-                        pos += 1
-                else:
-                        log_utils.log('%s Unknown: %s' % ('\t' * indent, q[pos:pos + 6]), xbmc.LOGDEBUG)
-                        break
-        
-        indent -= 1
-        if stringify:
-                return str(res)
-        return res
+def solve_equation(equation):
+    try:
+        offset = 1 if equation[0] == '+' else 0
+        return int(eval(equation.replace('!+[]', '1').replace('!![]', '1').replace('[]', '0').replace('(', 'str(')[offset:]))
+    except:
+        pass
 
 def solve(url, cj, wait=True):
         headers = {'User-Agent': USER_AGENT, 'Referer': url}
@@ -109,61 +53,51 @@ def solve(url, cj, wait=True):
             html = e.read()
         
         solver_pattern = 'var t,r,a,f,\s*([^=]+)={"([^"]+)":([^}]+)};.+challenge-form\'\);.*?\n.*?;(.*?);a\.value'
-        match = re.search(solver_pattern, html, re.DOTALL)
-        if not match:
-            log_utils.log("Couldn't find answer script - No cloudflare check?", xbmc.LOGWARNING)
-            return False
-        res = match.groups()
-
         vc_pattern = 'input type="hidden" name="jschl_vc" value="([^"]+)'
-        match = re.search(vc_pattern, html)
-        if not match:
-            log_utils.log("Couldn't find vc input - No cloudflare check?", xbmc.LOGWARNING)
-            return False
-        vc = match.group(1)
-
         pass_pattern = 'input type="hidden" name="pass" value="([^"]+)'
-        match = re.search(pass_pattern, html)
-        if not match:
-            log_utils.log("Couldn't find pass input - No cloudflare check?", xbmc.LOGWARNING)
+        init_match = re.search(solver_pattern, html, re.DOTALL)
+        vc_match = re.search(vc_pattern, html)
+        pass_match = re.search(pass_pattern, html)
+
+        if not init_match or not vc_match or not pass_match:
+            log_utils.log("Couldn't find attribute: init: |%s| vc: |%s| pass: |%s| No cloudflare check?" % (init_match, vc_match, pass_match), xbmc.LOGWARNING)
             return False
-        password = match.group(1)
+            
+        init_dict, init_var, init_equation, equations = init_match.groups()
+        vc = vc_match.group(1)
+        password = pass_match.group(1)
 
         #log_utils.log("VC is: %s" % (vc), xbmc.LOGDEBUG)
-        varname = (res[0], res[1])
-        solved = int(solveEquation(res[2].rstrip()))
-        log_utils.log("Initial value: %s Solved: %s" % (res[2], solved), xbmc.LOGDEBUG)
+        varname = (init_dict, init_var)
+        result = int(solve_equation(init_equation.rstrip()))
+        log_utils.log('Initial value: |%s| Result: |%s|' % (init_equation, result), xbmc.LOGDEBUG)
         
-        for extra in res[3].split(";"):
-                extra = extra.rstrip()
-                if extra[:len('.'.join(varname))] != '.'.join(varname):
-                        log_utils.log("Extra does not start with varname (%s)" % (extra), xbmc.LOGDEBUG)
+        for equation in equations.split(';'):
+                equation = equation.rstrip()
+                if equation[:len('.'.join(varname))] != '.'.join(varname):
+                        log_utils.log('Equation does not start with varname |%s|' % (equation), xbmc.LOGDEBUG)
                 else:
-                        extra = extra[len('.'.join(varname)):]
+                        equation = equation[len('.'.join(varname)):]
 
-                if extra[:2] == "+=":
-                        solved += int(solveEquation(extra[2:]))
-                elif extra[:2] == "-=":
-                        solved -= int(solveEquation(extra[2:]))
-                elif extra[:2] == "*=":
-                        solved *= int(solveEquation(extra[2:]))
-                elif extra[:2] == "/=":
-                        solved /= int(solveEquation(extra[2:]))
-                else:
-                        log_utils.log("Unknown modifier: %s" % (extra), xbmc.LOGWARNING)
-
-                log_utils.log('intermediate: %s = %s' % (extra, solved), xbmc.LOGDEBUG)
+                expression = equation[2:]
+                operator = equation[0]
+                if operator not in ['+', '-', '*', '/']:
+                    log_utils.log('Unknown operator: |%s|' % (equation), xbmc.LOGWARNING)
+                    continue
+                    
+                result = int(str(eval(str(result) + operator + str(solve_equation(expression)))))
+                log_utils.log('intermediate: %s = %s' % (equation, result), xbmc.LOGDEBUG)
         
         scheme = urlparse.urlparse(url).scheme
         domain = urlparse.urlparse(url).hostname
-        solved += len(domain)
-        log_utils.log("Solved value: %s" % (solved), xbmc.LOGDEBUG)
+        result += len(domain)
+        log_utils.log('Final Result: |%s|' % (result), xbmc.LOGDEBUG)
 
         if wait:
                 log_utils.log('Sleeping for 5 Seconds', xbmc.LOGDEBUG)
                 xbmc.sleep(5000)
                 
-        url = scheme + "://" + domain + "/cdn-cgi/l/chk_jschl?jschl_vc={0}&jschl_answer={1}&pass={2}".format(vc, solved, password)
+        url = '%s://%s/cdn-cgi/l/chk_jschl?jschl_vc=%s&jschl_answer=%s&pass=%s' % (scheme, domain, vc, result, password)
         log_utils.log('url: %s' % (url), xbmc.LOGDEBUG)
         request = urllib2.Request(url)
         for key in headers: request.add_header(key, headers[key])
