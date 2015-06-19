@@ -165,11 +165,11 @@ Addons Included
     </extension>
 </addon>
 
-<addon id="script.trakt" name="Trakt" version="3.0.2~beta4" provider-name="Trakt.tv">
+<addon id="script.trakt" name="Trakt" version="3.0.2~beta5" provider-name="Trakt.tv">
 	<requires>
 		<import addon="xbmc.python" version="2.14.0"/>
 		<import addon="script.module.simplejson" version="3.3.0"/>
-        <import addon="script.module.trakt" version="2.3.1"/>
+        <import addon="script.module.trakt" version="2.3.2"/>
         <import addon="script.module.dateutil" version="2.4.2"/>
 	</requires>
 	<extension point="xbmc.python.script" library="script.py">
@@ -224,7 +224,7 @@ Addons Included
 
 <addon id="script.module.trakt"
        name="trakt.py"
-       version="2.3.1"
+       version="2.3.2"
        provider-name="Fuzeman, Razzeee">
   <requires>
     <import addon="xbmc.python" version="2.1.0"/>
