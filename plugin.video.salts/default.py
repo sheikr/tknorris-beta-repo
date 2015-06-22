@@ -924,8 +924,8 @@ def get_sources(mode, video_type, title, year, slug, season='', episode='', ep_t
         if _SALTS.get_setting('enable_sort') == 'true':
             if _SALTS.get_setting('filter-unknown') == 'true':
                 hosters = utils.filter_unknown_hosters(hosters)
-        SORT_KEYS['source'] = utils.make_source_sort_key()
-        hosters.sort(key=utils.get_sort_key)
+            SORT_KEYS['source'] = utils.make_source_sort_key()
+            hosters.sort(key=utils.get_sort_key)
 
         hosters = filter_unusable_hosters(hosters)
 
@@ -1368,7 +1368,10 @@ def copy_list(section, slug, username=None, target_slug=None):
         copy_item = {'type': TRAKT_SECTIONS[section][:-1], query['id_type']: query['show_id']}
         copy_items.append(copy_item)
     response = add_many_to_list(section, copy_items, target_slug)
-    utils.notify(msg=i18n('list_copied') % (response['inserted'], response['already_exist'], response['skipped']), duration=5000)
+    added = sum(response['added'].values())
+    exists = sum(response['existing'].values())
+    not_found = sum([len(item) for item in response['not_found'].values()])
+    utils.notify(msg=i18n('list_copied') % (added, exists, not_found), duration=5000)
 
 @url_dispatcher.register(MODES.TOGGLE_TITLE, ['slug'])
 def toggle_title(slug):
