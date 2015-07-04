@@ -58,6 +58,13 @@ MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'Augus
 SHORT_MONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 Q_LIST = [item[0] for item in sorted(Q_ORDER.items(), key=lambda x:x[1])]
 
+class NoRedirection(urllib2.HTTPErrorProcessor):
+    def http_response(self, request, response):
+        log_utils.log('Stopping Redirect', xbmc.LOGDEBUG)
+        return response
+
+    https_response = http_response
+
 abstractstaticmethod = abc.abstractmethod
 class abstractclassmethod(classmethod):
 
@@ -229,7 +236,7 @@ class Scraper(object):
 
         return url
 
-    def _cached_http_get(self, url, base_url, timeout, cookies=None, data=None, multipart_data=None, headers=None, cache_limit=8):
+    def _cached_http_get(self, url, base_url, timeout, cookies=None, data=None, multipart_data=None, headers=None, allow_redirect=True, cache_limit=8):
         if cookies is None: cookies = {}
         if timeout == 0: timeout = None
         if headers is None: headers = {}
@@ -242,7 +249,7 @@ class Scraper(object):
             return html
 
         try:
-            cj = self._set_cookies(base_url, cookies)
+            self.cj = self._set_cookies(base_url, cookies)
             if data is not None: data = urllib.urlencode(data, True)
             if multipart_data is not None:
                 headers['Content-Type'] = 'multipart/form-data; boundary=X-X-X'
@@ -253,10 +260,19 @@ class Scraper(object):
             request.add_unredirected_header('Host', request.get_host())
             request.add_unredirected_header('Referer', referer)
             for key in headers: request.add_header(key, headers[key])
+            self.cj.add_cookie_header(request)
+            if not allow_redirect:
+                opener = urllib2.build_opener(NoRedirection)
+                urllib2.install_opener(opener)
+
             response = urllib2.urlopen(request, timeout=timeout)
+            self.cj.extract_cookies(response, request)
             if xbmcaddon.Addon().getSetting('cookie_debug') == 'true':
-                log_utils.log('Response Cookies: %s' % (self.cookies_as_str(cj)), xbmc.LOGDEBUG)
-            cj.save(ignore_discard=True)
+                log_utils.log('Response Cookies: %s - %s' % (url, self.cookies_as_str(self.cj)), xbmc.LOGDEBUG)
+            self.cj.save(ignore_discard=True)
+            if not allow_redirect and response.getcode() in [301, 302, 303, 307]:
+                return response.info().getheader('Location')
+            
             if response.info().get('Content-Encoding') == 'gzip':
                 buf = StringIO(response.read())
                 f = gzip.GzipFile(fileobj=buf)
@@ -265,7 +281,7 @@ class Scraper(object):
                 html = response.read()
         except urllib2.HTTPError as e:
             if e.code == 503 and 'cf-browser-verification' in e.read():
-                html = cloudflare.solve(url, cj)
+                html = cloudflare.solve(url, self.cj)
                 if not html:
                     return ''
             else:
@@ -279,16 +295,13 @@ class Scraper(object):
         return html
 
     def _set_cookies(self, base_url, cookies):
-        domain = urlparse.urlsplit(base_url).hostname
         cookie_file = os.path.join(COOKIEPATH, '%s_cookies.lwp' % (self.get_name()))
         cj = cookielib.LWPCookieJar(cookie_file)
-        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
-        urllib2.install_opener(opener)
-
         try: cj.load(ignore_discard=True)
         except: pass
         if xbmcaddon.Addon().getSetting('cookie_debug') == 'true':
-            log_utils.log('Before Cookies: %s' % (self.cookies_as_str(cj)), xbmc.LOGDEBUG)
+            log_utils.log('Before Cookies: %s - %s' % (self, self.cookies_as_str(cj)), xbmc.LOGDEBUG)
+        domain = urlparse.urlsplit(base_url).hostname
         for key in cookies:
             c = cookielib.Cookie(0, key, str(cookies[key]), port=None, port_specified=False, domain=domain, domain_specified=True,
                                 domain_initial_dot=False, path='/', path_specified=True, secure=False, expires=None, discard=False, comment=None,
@@ -296,7 +309,7 @@ class Scraper(object):
             cj.set_cookie(c)
         cj.save(ignore_discard=True)
         if xbmcaddon.Addon().getSetting('cookie_debug') == 'true':
-            log_utils.log('After Cookies: %s' % (self.cookies_as_str(cj)), xbmc.LOGDEBUG)
+            log_utils.log('After Cookies: %s - %s' % (self, self.cookies_as_str(cj)), xbmc.LOGDEBUG)
         return cj
 
     def cookies_as_str(self, cj):

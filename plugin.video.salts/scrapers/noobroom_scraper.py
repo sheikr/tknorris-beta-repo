@@ -55,11 +55,12 @@ class NoobRoom_Scraper(scraper.Scraper):
         if match:
             file_link = match.group(1)
             stream_url = urlparse.urljoin(self.base_url, file_link)
-            self._set_cookies(self.base_url, {})
+            cj = self._set_cookies(self.base_url, {})
             request = urllib2.Request(stream_url)
             request.add_header('User-Agent', USER_AGENT)
             request.add_unredirected_header('Host', request.get_host())
             request.add_unredirected_header('Referer', url)
+            cj.add_cookie_header(request)
             response = urllib2.urlopen(request)
             return response.geturl()
 
@@ -74,10 +75,10 @@ class NoobRoom_Scraper(scraper.Scraper):
             url = urlparse.urljoin(self.base_url, source_url)
             html = self._http_get(url, cache_limit=.5)
 
-            has_1080p = False
-            match = re.search('Watch in 1080p', html)
-            if match:
+            if 'Watch in 1080p' in html:
                 has_1080p = True
+            else:
+                has_1080p = False
 
             if video.video_type == VIDEO_TYPES.MOVIE:
                 quality = QUALITIES.HD720
@@ -150,16 +151,20 @@ class NoobRoom_Scraper(scraper.Scraper):
             return ''
 
         html = super(NoobRoom_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, cache_limit=cache_limit)
-        if not re.search('href="logout.php"', html):
+        if not 'href="logout.php"' in html:
             log_utils.log('Logging in for url (%s)' % (url), xbmc.LOGDEBUG)
-            self.__login()
+            self.__login(html)
             html = super(NoobRoom_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, cache_limit=0)
 
         return html
 
-    def __login(self):
+    def __login(self, html):
         url = urlparse.urljoin(self.base_url, '/login2.php')
-        data = {'email': self.username, 'password': self.password}
-        html = super(NoobRoom_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, cache_limit=0)
-        if not re.search('href="logout.php"', html):
+        data = {'email': self.username, 'password': self.password, 'echo': 'echo'}
+        match = re.search('challenge\?k=([^"]+)', html)
+        if match:
+            data.update(self._do_recaptcha(match.group(1)))
+            
+        html = super(NoobRoom_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, allow_redirect=False, cache_limit=0)
+        if 'index.php' not in html:
             raise Exception('noobroom login failed')
