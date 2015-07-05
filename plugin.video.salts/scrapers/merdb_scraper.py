@@ -24,7 +24,7 @@ from salts_lib.constants import VIDEO_TYPES
 from salts_lib.constants import QUALITIES
 
 QUALITY_MAP = {'DVD': QUALITIES.HIGH, 'TS': QUALITIES.MEDIUM, 'CAM': QUALITIES.LOW}
-BASE_URL = 'http://merdb.cn'
+BASE_URL = 'http://merdb.mx'
 
 class MerDB_Scraper(scraper.Scraper):
     base_url = BASE_URL

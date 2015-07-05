@@ -20,7 +20,10 @@ import urllib
 import urlparse
 import re
 import xbmcaddon
+import time
+from salts_lib import dom_parser
 from salts_lib.constants import VIDEO_TYPES
+from salts_lib.constants import QUALITIES
 
 BASE_URL = 'http://view47.com'
 EPID_URL = '/ip.temp/swf/plugins/ipplugins.php'
@@ -43,7 +46,20 @@ class View47_Scraper(scraper.Scraper):
         return 'view47'
 
     def resolve_link(self, link):
-        return link
+            url = urlparse.urljoin(self.base_url, link)
+            html = self._http_get(url, cache_limit=.5)
+            match = re.search('file\s*:\s*"([^"]+)', html)
+            if match:
+                return match.group(1)
+            else:
+                match = re.search('<iframe[^<]*src="([^"]+)', html)
+                if match:
+                    return match.group(1)
+                else:
+                    match = re.search('proxy\.link=([^"]+)', html)
+                    if match:
+                        return match.group(1)
+                    
 
     def format_source_label(self, item):
         return '[%s] %s' % (item['quality'], item['host'])
@@ -54,9 +70,20 @@ class View47_Scraper(scraper.Scraper):
         if source_url:
             url = urlparse.urljoin(self.base_url, source_url)
             html = self._http_get(url, cache_limit=.5)
-            for match in re.finditer('file\s*:\s*"([^"]+).*?label\s*:\s*"([^p"]+)', html):
-                stream_url, height = match.groups()
-                hosters.append({'multi-part': False, 'url': stream_url, 'class': self, 'quality': self._height_get_quality(height), 'host': 'view47.com', 'rating': None, 'views': None, 'direct': True})
+            div = dom_parser.parse_dom(html, 'div', {'class': 'new_server'})
+            if div:
+                div = div[0]
+                for match in re.finditer('href="([^"]+)(?:.*?>){2}([^<]+)', div):
+                    stream_url, host = match.groups()
+                    host = host.lower()
+                    if host == 'picasa':
+                        direct = True
+                        quality = QUALITIES.MEDIUM
+                    else:
+                        quality = self._get_quality(video, host, QUALITIES.MEDIUM)
+                        direct = False
+
+                    hosters.append({'multi-part': False, 'url': stream_url, 'class': self, 'quality': quality, 'host': host, 'rating': None, 'views': None, 'direct': direct})
 
         return hosters
 
@@ -64,15 +91,28 @@ class View47_Scraper(scraper.Scraper):
         return super(View47_Scraper, self)._default_get_url(video)
 
     def search(self, video_type, title, year):
-        search_url = urlparse.urljoin(self.base_url, '/search/%s.html' % (urllib.quote_plus(title)))
+        search_url = urlparse.urljoin(self.base_url, '/search.php?q=%s&limit=20&timestamp=%s' % (urllib.quote_plus(title), time.time()))
         html = self._http_get(search_url, cache_limit=.25)
+        print html
         results = []
-        pattern = 'class="year">(\d{4}).*?href="([^"]+)"\s+title="([^"]+)'
-        for match in re.finditer(pattern, html):
-            match_year, url, title = match.groups()
-            if not year or not match_year or year == match_year:
-                result = {'title': title, 'year': match_year, 'url': url.replace(self.base_url, '')}
-                results.append(result)
+        items = dom_parser.parse_dom(html, 'li')
+        if len(items) >= 2:
+            items = items[1:]
+            for item in items:
+                url = dom_parser.parse_dom(item, 'a', ret='href')
+                match_title_year = dom_parser.parse_dom(item, 'strong')
+                if url and match_title_year:
+                    url = url[0]
+                    match_title_year = match_title_year[0].replace('<strong>', '').replace('</strong>', '')
+                    match = re.search('(.*?)(?:\s+\(?(\d{4})\)?)', match_title_year)
+                    if match:
+                        match_title, match_year = match.groups()
+                    else:
+                        match_title = match_title_year
+                        match_year = ''
+                    
+                    result = {'title': match_title, 'year': match_year, 'url': url.replace(self.base_url, '')}
+                    results.append(result)
         return results
 
     def _http_get(self, url, data=None, cache_limit=8):
