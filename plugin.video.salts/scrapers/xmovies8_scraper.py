@@ -23,8 +23,8 @@ import xbmcaddon
 from salts_lib import dom_parser
 from salts_lib.constants import VIDEO_TYPES
 
-BASE_URL = 'http://xmovies8.co'
-SEARCH_URL = 'http://www.google.com/search?q=%s&sitesearch=xmovies8.co'
+BASE_URL = 'http://xmovies8.tv'
+SEARCH_URL = 'http://www.google.com/search?q=%s+site:xmovies8.tv'
 
 class XMovies8_Scraper(scraper.Scraper):
     base_url = BASE_URL
@@ -55,7 +55,7 @@ class XMovies8_Scraper(scraper.Scraper):
             html = self._http_get(url, cache_limit=.5)
             for match in re.finditer('href="([^"]+)[^>]*>(\d+)x(\d+)', html):
                 stream_url, width, _ = match.groups()
-                hoster = {'multi-part': False, 'host': 'xmovies8', 'class': self, 'quality': self._width_get_quality(width), 'views': None, 'rating': None, 'url': stream_url, 'direct': True}
+                hoster = {'multi-part': False, 'host': self._get_direct_hostname(stream_url), 'class': self, 'quality': self._width_get_quality(width), 'views': None, 'rating': None, 'url': stream_url, 'direct': True}
                 hosters.append(hoster)
         return hosters
 

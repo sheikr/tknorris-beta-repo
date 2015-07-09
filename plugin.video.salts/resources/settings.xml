@@ -45,7 +45,6 @@
 	    <setting id="use_https" type="bool" label="30548" default="false"/>
 		<setting id="trakt_timeout" type="slider" label="30549" default="30" range="0,120" option="int"/>
 		<setting id="list_size" type="slider" label="30550" default="30" range="1,100" option="int"/>
-		<setting id="progress_size" type="slider" label="30551" default="25" range="0,200" option="int"/>
 		<setting id="trakt_bookmark" type="bool" label="30552" default="false"/>
 		<setting id="cache_watched" type="bool" label="30553" default="true"/>
 		<setting id="cache_collection" type="bool" label="30554" default="true"/>
@@ -360,6 +359,12 @@
          <setting id="PrimeWire_try" type="number" default="0" visible="false"/>
          <setting id="PrimeWire_fail" type="number" default="0" visible="false"/>
          <setting id="PrimeWire_check" type="number" default="0" visible="false"/>
+         <setting id="pubfilm-enable" type="bool" label="pubfilm Enabled" default="true" visible="true"/>
+         <setting id="pubfilm-base_url" type="text" label="    Base Url" default="http://pubfilm.com" visible="eq(-1,true)"/>
+         <setting id="pubfilm-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
+         <setting id="pubfilm_try" type="number" default="0" visible="false"/>
+         <setting id="pubfilm_fail" type="number" default="0" visible="false"/>
+         <setting id="pubfilm_check" type="number" default="0" visible="false"/>
          <setting id="RLSSource.net-enable" type="bool" label="RLSSource.net Enabled" default="true" visible="true"/>
          <setting id="RLSSource.net-base_url" type="text" label="    Base Url" default="http://rlssource.net" visible="eq(-1,true)"/>
          <setting id="RLSSource.net-sub_check" type="bool" label="    Include in Page Existence checks?" default="false" visible="eq(-2,true)"/>
@@ -406,15 +411,15 @@
          <setting id="UFlix.org_try" type="number" default="0" visible="false"/>
          <setting id="UFlix.org_fail" type="number" default="0" visible="false"/>
          <setting id="UFlix.org_check" type="number" default="0" visible="false"/>
+    </category>
+	
+    <category label="Scrapers 4">
          <setting id="vidics.ch-enable" type="bool" label="vidics.ch Enabled" default="true" visible="true"/>
          <setting id="vidics.ch-base_url" type="text" label="    Base Url" default="http://www.vidics.ch" visible="eq(-1,true)"/>
          <setting id="vidics.ch-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
          <setting id="vidics.ch_try" type="number" default="0" visible="false"/>
          <setting id="vidics.ch_fail" type="number" default="0" visible="false"/>
          <setting id="vidics.ch_check" type="number" default="0" visible="false"/>
-    </category>
-	
-    <category label="Scrapers 4">
          <setting id="view47-enable" type="bool" label="view47 Enabled" default="true" visible="true"/>
          <setting id="view47-base_url" type="text" label="    Base Url" default="http://view47.com" visible="eq(-1,true)"/>
          <setting id="view47-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
@@ -459,7 +464,7 @@
          <setting id="wso.ch_check" type="number" default="0" visible="false"/>
          <setting id="wso.ch-max_pages" type="slider" range="1,50" option="int" label="     Maximum Pages" default="1" visible="eq(-6,true)"/>
          <setting id="xmovies8-enable" type="bool" label="xmovies8 Enabled" default="true" visible="true"/>
-         <setting id="xmovies8-base_url" type="text" label="    Base Url" default="http://xmovies8.co" visible="eq(-1,true)"/>
+         <setting id="xmovies8-base_url" type="text" label="    Base Url" default="http://xmovies8.tv" visible="eq(-1,true)"/>
          <setting id="xmovies8-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
          <setting id="xmovies8_try" type="number" default="0" visible="false"/>
          <setting id="xmovies8_fail" type="number" default="0" visible="false"/>

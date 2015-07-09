@@ -790,6 +790,10 @@ msgctxt "#30193"
 msgid "Base Url Reset Complete"
 msgstr ""
 
+msgctxt "#30194"
+msgid "Requesting Url for: %s"
+msgstr ""
+
 msgctxt "#30500"
 msgid "Addon Theme"
 msgstr ""
@@ -996,9 +1000,7 @@ msgctxt "#30550"
 msgid "Trakt Page Size"
 msgstr ""
 
-msgctxt "#30551"
-msgid "Maximum Progress Size (0=No Limit)"
-msgstr ""
+# 30551 removed
 
 msgctxt "#30552"
 msgid "Use Trakt Bookmarks"

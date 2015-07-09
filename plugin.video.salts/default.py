@@ -90,7 +90,10 @@ def show_views():
 
 @url_dispatcher.register(MODES.BROWSE_VIEW, ['content_type'])
 def browse_view(content_type):
-    _SALTS.add_directory({'mode': MODES.SET_VIEW, 'content_type': content_type}, {'title': i18n('set_view_instr') % (content_type.capitalize())}, img=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
+    url = _SALTS.build_plugin_url({'mode': MODES.SET_VIEW, 'content_type': content_type})
+    list_item = xbmcgui.ListItem(i18n('set_view_instr') % (content_type.capitalize()), iconImage=utils.art('settings.png'), thumbnailImage=utils.art('settings.png'))
+    list_item.setProperty('fanart_image', utils.art('fanart.jpg'))
+    xbmcplugin.addDirectoryItem(int(sys.argv[1]), url, list_item)
     utils.set_view(content_type, False)
     xbmcplugin.endOfDirectory(int(sys.argv[1]))
 
@@ -158,8 +161,8 @@ def auto_conf():
         _SALTS.set_setting('sort4_field', '3')
         _SALTS.set_setting('sort5_field', '4')
         sso = ['Local', 'DirectDownload.tv', 'VKBox', 'NoobRoom', 'yify-streaming', 'stream-tv.co', 'streamallthis.is', 'PlayBox', 'GVCenter', 'Shush.se', 'clickplay.to', 'IceFilms', 'ororo.tv',
-               'afdah.org', 'xmovies8', 'Flixanity', 'hdmz', 'niter.tv', 'yify.tv', 'movietv.to', 'MintMovies', 'MovieNight', 'cmz', 'viooz.ac', 'view47', 'MoviesHD', 'OnlineMovies', 'MoviesOnline7',
-                'wmo.ch', 'zumvo.com', 'alluc.com', 'MyVideoLinks.eu', 'OneClickWatch', 'RLSSource.net', 'TVRelease.Net', 'FilmStreaming.in', 'PrimeWire', 'WatchFree.to',
+               'afdah.org', 'xmovies8', 'Flixanity', 'hdmz', 'niter.tv', 'yify.tv', 'pubfilm', 'movietv.to', 'MintMovies', 'MovieNight', 'cmz', 'viooz.ac', 'view47', 'MoviesHD', 'OnlineMovies',
+               'MoviesOnline7', 'wmo.ch', 'zumvo.com', 'mvsnap', 'alluc.com', 'MyVideoLinks.eu', 'OneClickWatch', 'RLSSource.net', 'TVRelease.Net', 'FilmStreaming.in', 'PrimeWire', 'WatchFree.to',
                'pftv', 'wso.ch', 'WatchSeries', 'SolarMovie', 'UFlix.org', 'ch131', 'moviestorm.eu', 'vidics.ch', 'Movie4K', 'LosMovies', 'MerDB', 'iWatchOnline', '2movies', 'iStreamHD', 'afdah',
                'filmikz.ch', 'movie25']
         db_connection.set_setting('source_sort_order', '|'.join(sso))
@@ -560,68 +563,54 @@ def show_collection(section):
 def get_progress(cache_override=False):
     cached = _SALTS.get_setting('cache_watched') == 'true' and not cache_override
     timeout = max_timeout = int(_SALTS.get_setting('trakt_timeout'))
-    max_progress = int(_SALTS.get_setting('progress_size'))
     watched_list = trakt_api.get_watched(SECTIONS.TV, full=True, cached=cached)
     hidden = dict.fromkeys([item['show']['ids']['slug'] for item in trakt_api.get_hidden_progress(cached=cached)])
-    episodes = []
     worker_count = 0
     workers = []
     shows = {}
-    if utils.P_MODE != P_MODES.NONE: q = utils.Queue()
+    q = utils.Queue()
     begin = time.time()
-    for i, watched in enumerate(watched_list):
+    for watched in watched_list:
         if watched['show']['ids']['slug'] in hidden:
             continue
         
-        if utils.P_MODE == P_MODES.NONE:
-            if i != 0 and i >= max_progress:
-                break
-    
-            progress = trakt_api.get_show_progress(watched['show']['ids']['slug'], full=True, cached=cached)
+        worker = utils.start_worker(q, utils.parallel_get_progress, [watched['show']['ids']['slug'], cached])
+        worker_count += 1
+        workers.append(worker)
+        # create a shows dictionary to be used during progress building
+        shows[watched['show']['ids']['slug']] = watched['show']
+        shows[watched['show']['ids']['slug']]['last_watched_at'] = watched['last_watched_at']
+
+    episodes = []
+    while worker_count > 0:
+        try:
+            log_utils.log('Calling get with timeout: %s' % (timeout), xbmc.LOGDEBUG)
+            progress = q.get(True, timeout)
+            #log_utils.log('Got Progress: %s' % (progress), xbmc.LOGDEBUG)
+            worker_count -= 1
+
             if 'next_episode' in progress and progress['next_episode']:
-                episode = {'show': watched['show'], 'episode': progress['next_episode']}
-                episode['last_watched_at'] = watched['last_watched_at']
+                episode = {'show': shows[progress['slug']], 'episode': progress['next_episode']}
+                episode['last_watched_at'] = shows[progress['slug']]['last_watched_at']
                 episode['percent_completed'] = (progress['completed'] * 100) / progress['aired'] if progress['aired'] > 0 else 0
                 episode['completed'] = progress['completed']
                 episodes.append(episode)
-        else:
-            worker = utils.start_worker(q, utils.parallel_get_progress, [watched['show']['ids']['slug'], cached])
-            worker_count += 1
-            workers.append(worker)
-            # create a shows dictionary to be used during progress building
-            shows[watched['show']['ids']['slug']] = watched['show']
-            shows[watched['show']['ids']['slug']]['last_watched_at'] = watched['last_watched_at']
 
-    if utils.P_MODE != P_MODES.NONE:
-        while worker_count > 0:
-            try:
-                log_utils.log('Calling get with timeout: %s' % (timeout), xbmc.LOGDEBUG)
-                progress = q.get(True, timeout)
-                #log_utils.log('Got Progress: %s' % (progress), xbmc.LOGDEBUG)
-                worker_count -= 1
-
-                if 'next_episode' in progress and progress['next_episode']:
-                    episode = {'show': shows[progress['slug']], 'episode': progress['next_episode']}
-                    episode['last_watched_at'] = shows[progress['slug']]['last_watched_at']
-                    episode['percent_completed'] = (progress['completed'] * 100) / progress['aired'] if progress['aired'] > 0 else 0
-                    episode['completed'] = progress['completed']
-                    episodes.append(episode)
-
-                if max_timeout > 0:
-                    timeout = max_timeout - (time.time() - begin)
-                    if timeout < 0: timeout = 0
-            except utils.Empty:
-                log_utils.log('Get Progress Process Timeout', xbmc.LOGWARNING)
-                break
-        else:
-            log_utils.log('All progress results received')
+            if max_timeout > 0:
+                timeout = max_timeout - (time.time() - begin)
+                if timeout < 0: timeout = 0
+        except utils.Empty:
+            log_utils.log('Get Progress Process Timeout', xbmc.LOGWARNING)
+            break
+    else:
+        log_utils.log('All progress results received')
         
-        total = len(workers)
-        if worker_count > 0:
-            timeout_msg = i18n('progress_timeouts') % (worker_count, total)
-            utils.notify(msg=timeout_msg, duration=5000)
-            log_utils.log(timeout_msg, xbmc.LOGWARNING)
-        workers = utils.reap_workers(workers)
+    total = len(workers)
+    if worker_count > 0:
+        timeout_msg = i18n('progress_timeouts') % (worker_count, total)
+        utils.notify(msg=timeout_msg, duration=5000)
+        log_utils.log(timeout_msg, xbmc.LOGWARNING)
+    workers = utils.reap_workers(workers)
     
     return workers, utils.sort_progress(episodes, sort_order=SORT_MAP[int(_SALTS.get_setting('sort_progress'))])
 
@@ -856,52 +845,46 @@ def get_sources(mode, video_type, title, year, slug, season='', episode='', ep_t
     if max_timeout == 0: timeout = None
     max_results = int(_SALTS.get_setting('source_results'))
     worker_count = 0
-    hosters = []
     workers = []
-    video = ScraperVideo(video_type, title, year, slug, season, episode, ep_title, ep_airdate)
-    if utils.P_MODE != P_MODES.NONE: q = utils.Queue()
+    q = utils.Queue()
     begin = time.time()
     fails = {}
-    got_timeouts = False
+    video = ScraperVideo(video_type, title, year, slug, season, episode, ep_title, ep_airdate)
     for cls in utils.relevant_scrapers(video_type):
         scraper = cls(max_timeout)
-        if utils.P_MODE == P_MODES.NONE:
-            hosters += scraper.get_sources(video)
-            if max_results > 0 and len(hosters) >= max_results:
-                break
-        else:
-            worker = utils.start_worker(q, utils.parallel_get_sources, [scraper, video])
-            utils.increment_setting('%s_try' % (cls.get_name()))
-            worker_count += 1
-            workers.append(worker)
-            fails[cls.get_name()] = True
+        worker = utils.start_worker(q, utils.parallel_get_sources, [scraper, video])
+        utils.increment_setting('%s_try' % (cls.get_name()))
+        worker_count += 1
+        workers.append(worker)
+        fails[cls.get_name()] = True
 
     # collect results from workers
-    if utils.P_MODE != P_MODES.NONE:
-        while worker_count > 0:
-            try:
-                log_utils.log('Calling get with timeout: %s' % (timeout), xbmc.LOGDEBUG)
-                result = q.get(True, timeout)
-                log_utils.log('Got %s Source Results' % (len(result['hosters'])), xbmc.LOGDEBUG)
-                worker_count -= 1
-                hosters += result['hosters']
-                del fails[result['name']]
-                if max_timeout > 0:
-                    timeout = max_timeout - (time.time() - begin)
-                    if timeout < 0: timeout = 0
-            except utils.Empty:
-                log_utils.log('Get Sources Process Timeout', xbmc.LOGWARNING)
-                utils.record_timeouts(fails)
-                got_timeouts = True
-                break
+    hosters = []
+    got_timeouts = False
+    while worker_count > 0:
+        try:
+            log_utils.log('Calling get with timeout: %s' % (timeout), xbmc.LOGDEBUG)
+            result = q.get(True, timeout)
+            log_utils.log('Got %s Source Results' % (len(result['hosters'])), xbmc.LOGDEBUG)
+            worker_count -= 1
+            hosters += result['hosters']
+            del fails[result['name']]
+            if max_timeout > 0:
+                timeout = max_timeout - (time.time() - begin)
+                if timeout < 0: timeout = 0
+        except utils.Empty:
+            log_utils.log('Get Sources Process Timeout', xbmc.LOGWARNING)
+            utils.record_timeouts(fails)
+            got_timeouts = True
+            break
 
-            if max_results > 0 and len(hosters) >= max_results:
-                log_utils.log('Exceeded max results: %s/%s' % (max_results, len(hosters)))
-                break
+        if max_results > 0 and len(hosters) >= max_results:
+            log_utils.log('Exceeded max results: %s/%s' % (max_results, len(hosters)))
+            break
 
-        else:
-            got_timeouts = False
-            log_utils.log('All source results received')
+    else:
+        got_timeouts = False
+        log_utils.log('All source results received')
 
     total = len(workers)
     timeouts = len(fails)
@@ -1136,9 +1119,11 @@ def pick_source_dir(mode, hosters, video_type, slug, season='', episode=''):
     if mode == MODES.DOWNLOAD_SOURCE:
         next_mode = MODES.DIRECT_DOWNLOAD
         folder = True
+        playable = 'false'
     else:
         next_mode = MODES.RESOLVE_SOURCE
         folder = False
+        playable = 'true'
 
     hosters_len = len(hosters)
     for item in hosters:
@@ -1151,68 +1136,62 @@ def pick_source_dir(mode, hosters, video_type, slug, season='', episode=''):
 
         # log_utils.log(item, xbmc.LOGDEBUG)
         queries = {'mode': next_mode, 'class_url': item['url'], 'direct': item['direct'], 'video_type': video_type, 'slug': slug, 'season': season, 'episode': episode, 'class_name': item['class'].get_name()}
-        _SALTS.add_directory(queries, infolabels={'title': item['label']}, is_folder=folder, img='', fanart='', total_items=hosters_len)
+        url = _SALTS.build_plugin_url(queries)
+        list_item = xbmcgui.ListItem(item['label'])
+        list_item.setProperty('isPlayable', playable)
+        xbmcplugin.addDirectoryItem(int(sys.argv[1]), url, list_item, isFolder=folder, totalItems=hosters_len)
 
     _SALTS.end_of_directory()
 
 @url_dispatcher.register(MODES.SET_URL_MANUAL, ['mode', 'video_type', 'title', 'year', 'slug'], ['season', 'episode', 'ep_title', 'ep_airdate'])
 @url_dispatcher.register(MODES.SET_URL_SEARCH, ['mode', 'video_type', 'title', 'year', 'slug'], ['season', 'episode', 'ep_title', 'ep_airdate'])
 def set_related_url(mode, video_type, title, year, slug, season='', episode='', ep_title='', ep_airdate=''):
-    related_list = []
     timeout = max_timeout = int(_SALTS.get_setting('source_timeout'))
     if max_timeout == 0: timeout = None
     worker_count = 0
     workers = []
-    fails = {}
-    if utils.P_MODE != P_MODES.NONE: q = utils.Queue()
+    related_list = []
+    q = utils.Queue()
     begin = time.time()
     video = ScraperVideo(video_type, title, year, slug, season, episode, ep_title, ep_airdate)
     with gui_utils.ProgressDialog(i18n('set_related_url'), utils.make_progress_msg(video_type, title, year, season, episode)) as pd:
         scrapers = utils.relevant_scrapers(video_type, order_matters=True)
         total = len(scrapers)
-        result_count = 0
         for cls in scrapers:
             scraper = cls(max_timeout)
-            if utils.P_MODE == P_MODES.NONE:
-                url = scraper.get_url(video)
-                if not url: url = ''
-                result_count += 1
-                pd.update(result_count * 100 / total, line2=i18n('recv_result') % (scraper.get_name()))
-            else:
-                url = ''
-                worker = utils.start_worker(q, utils.parallel_get_url, [scraper, video])
-                utils.increment_setting('%s_try' % (cls.get_name()))
-                worker_count += 1
-                workers.append(worker)
-            related = {'class': scraper, 'url': url, 'name': cls.get_name(), 'label': '[%s] %s' % (cls.get_name(), url)}
-            related_list.append(related)
+            worker = utils.start_worker(q, utils.parallel_get_url, [scraper, video])
+            utils.increment_setting('%s_try' % (cls.get_name()))
+            related_list.append({'class': scraper, 'url': '', 'name': cls.get_name(), 'label': '[%s]' % (cls.get_name())})
+            worker_count += 1
+            progress = worker_count * 50 / total
+            pd.update(progress, line2=i18n('req_result') % (cls.get_name()))
+            workers.append(worker)
     
         # collect results from workers
-        if utils.P_MODE != P_MODES.NONE:
-            fails = dict.fromkeys([item['name'] for item in related_list], True)
-            total = worker_count
-            while worker_count > 0:
-                try:
-                    log_utils.log('Calling get with timeout: %s' % (timeout), xbmc.LOGDEBUG)
-                    result = q.get(True, timeout)
-                    log_utils.log('Got result: %s' % (result), xbmc.LOGDEBUG)
-                    # related_list.append(result)
-                    for i, item in enumerate(related_list):
-                        if item['name'] == result['name']:
-                            related_list[i] = result
-                            del fails[result['name']]
-                    worker_count -= 1
-                    progress = (total - worker_count) * 100 / total
-                    pd.update(progress, line2=i18n('recv_result') % (result['name']))
-                    if max_timeout > 0:
-                        timeout = max_timeout - (time.time() - begin)
-                        if timeout < 0: timeout = 0
-                except utils.Empty:
-                    log_utils.log('Get Url Timeout', xbmc.LOGWARNING)
-                    utils.record_timeouts(fails)
-                    break
-            else:
-                log_utils.log('All source results received')
+        fails = dict.fromkeys([item['name'] for item in related_list], True)
+        total = worker_count
+        while worker_count > 0:
+            try:
+                log_utils.log('Calling get with timeout: %s' % (timeout), xbmc.LOGDEBUG)
+                result = q.get(True, timeout)
+                log_utils.log('Got result: %s' % (result), xbmc.LOGDEBUG)
+                # related_list.append(result)
+                for i, item in enumerate(related_list):
+                    if item['name'] == result['name']:
+                        related_list[i] = result
+                        del fails[result['name']]
+                worker_count -= 1
+                progress = ((total - worker_count) * 50 / total) + 50
+                pd.update(progress, line2=i18n('recv_result') % (result['name']))
+                if max_timeout > 0:
+                    timeout = max_timeout - (time.time() - begin)
+                    if timeout < 0: timeout = 0
+            except utils.Empty:
+                log_utils.log('Get Url Timeout', xbmc.LOGWARNING)
+                utils.record_timeouts(fails)
+                break
+        else:
+            log_utils.log('All source results received')
 
     total = len(workers)
     timeouts = len(fails)
@@ -1901,6 +1880,8 @@ def make_item(section_params, show, menu_items=None):
     info = utils.make_info(show, people=people)
     if not section_params['folder']:
         liz.setProperty('IsPlayable', 'true')
+    else:
+        liz.setProperty('IsPlayable', 'false')
 
     if 'TotalEpisodes' in info:
         liz.setProperty('TotalEpisodes', str(info['TotalEpisodes']))
