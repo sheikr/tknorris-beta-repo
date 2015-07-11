@@ -77,7 +77,7 @@ class Zumvo_Scraper(scraper.Scraper):
                     stream_url = GKDecrypter.decrypter(198, 128).decrypt(proxy_link, base64.urlsafe_b64decode('NlFQU1NQSGJrbXJlNzlRampXdHk='), 'ECB').split('\0')[0]
                     if 'picasa' in stream_url:
                         html = self._http_get(stream_url, cache_limit=.5)
-                        sources = self.__parse_google(html)
+                        sources = self._parse_google(html)
                         if sources:
                             for source in sources:
                                 hoster = {'multi-part': False, 'url': source, 'class': self, 'quality': sources[source], 'host': self._get_direct_hostname(source), 'rating': None, 'views': views, 'direct': True}
@@ -87,15 +87,6 @@ class Zumvo_Scraper(scraper.Scraper):
                         hosters.append(hoster)
 
         return hosters
-
-    def __parse_google(self, html):
-        pattern = '"url"\s*:\s*"([^"]+)"\s*,\s*"height"\s*:\s*\d+\s*,\s*"width"\s*:\s*(\d+)\s*,\s*"type"\s*:\s*"video/'
-        sources = {}
-        for match in re.finditer(pattern, html):
-            url, width = match.groups()
-            url = url.replace('%3D', '=')
-            sources[url] = self._width_get_quality(width)
-        return sources
 
     def get_url(self, video):
         return super(Zumvo_Scraper, self)._default_get_url(video)
