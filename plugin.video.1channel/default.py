@@ -373,20 +373,6 @@ def PlaySource(url, title, video_type, primewire_url, resume, imdbnum='', year='
         else:
             meta = {'label': title, 'title': title, 'year': year}
 
-    utils.log('ids meta is: imdbnum: %s; meta: %s' % (imdbnum, meta), xbmc.LOGDEBUG)
-    ids = {}
-    if imdbnum:
-        ids = {'imdb': imdbnum}
-    else:
-        if 'imdb_id' in meta:
-            ids.update({'imdb': meta['imdb_id']})
-        if 'tmdb_id' in meta:
-            ids.update({'tmdb': meta['tmdb_id']})
-        if 'tvdb_id' in meta:
-            ids.update({'tvdb': meta['tvdb_id']})
-    if ids:
-        win.setProperty('script.trakt.ids', json.dumps(ids))
-
     if dbid and int(dbid) > 0:
         # we're playing from a library item
         if video_type == 'episode':
@@ -415,6 +401,20 @@ def PlaySource(url, title, video_type, primewire_url, resume, imdbnum='', year='
             meta['DBID'] = dbid
             meta['backdrop_url'] = meta['fanart']
             meta['cover_url'] = meta['thumbnail']
+
+    utils.log('ids meta is: imdbnum: %s; meta: %s' % (imdbnum, meta), xbmc.LOGDEBUG)
+    ids = {}
+    if imdbnum:
+        ids = {'imdb': imdbnum}
+    else:
+        if 'imdb_id' in meta:
+            ids.update({'imdb': meta['imdb_id']})
+        if 'tmdb_id' in meta:
+            ids.update({'tmdb': meta['tmdb_id']})
+        if 'tvdb_id' in meta:
+            ids.update({'tvdb': meta['tvdb_id']})
+    if ids:
+        win.setProperty('script.trakt.ids', json.dumps(ids))
 
     win = xbmcgui.Window(10000)
     win.setProperty('1ch.playing', json.dumps(meta))
@@ -1463,7 +1463,7 @@ def repair_missing_images():
 @pw_dispatcher.register(MODES.ADD2LIB, ['video_type', 'url', 'title'], ['year', 'img', 'imdbnum'])
 def manual_add_to_library(video_type, url, title, year='', img='', imdbnum=''):
     add_to_library(video_type, url, title, img, year, imdbnum)
-    utils.notify(msg=i18n('added_to_library'), duration=2000)
+    utils.notify(msg=i18n('added_to_library') % (title), duration=2000)
 
 def add_to_library(video_type, url, title, img, year, imdbnum):
     utils.log('Creating .strm for %s %s %s %s %s %s' % (video_type, title, imdbnum, url, img, year))
