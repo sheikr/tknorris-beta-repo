@@ -1477,6 +1477,14 @@ def import_db():
         raise
 
 @url_dispatcher.register(MODES.ADD_TO_LIBRARY, ['video_type', 'title', 'year', 'slug'])
+def man_add_to_library(video_type, title, year, slug):
+    add_to_library(video_type, title, year, slug)
+    if video_type == VIDEO_TYPES.MOVIE and year:
+        msg = '%s (%s)' % (title, year)
+    else:
+        msg = title
+    kodi.notify(msg=i18n('addded_to_lib') % (msg), duration=5000)
+
 def add_to_library(video_type, title, year, slug):
     log_utils.log('Creating .strm for |%s|%s|%s|%s|' % (video_type, title, year, slug), xbmc.LOGDEBUG)
     if video_type == VIDEO_TYPES.TVSHOW:
@@ -1508,7 +1516,7 @@ def add_to_library(video_type, title, year, slug):
                     filename = filename % ('%02d' % int(season_num), '%02d' % int(ep_num))
                     final_path = os.path.join(make_path(save_path, video_type, show['title'], season=season_num), filename)
                     air_date = utils.make_air_date(episode['first_aired'])
-                    strm_string = kodi.get_plugin_url({'mode': MODES.GET_SOURCES, 'video_type': VIDEO_TYPES.EPISODE, 'title': title, 'year': year, 'season': season_num,
+                    strm_string = kodi.get_plugin_url({'mode': MODES.GET_SOURCES, 'video_type': VIDEO_TYPES.EPISODE, 'title': show['title'], 'year': year, 'season': season_num,
                                                            'episode': ep_num, 'slug': slug, 'ep_title': episode['title'], 'ep_airdate': air_date, 'dialog': True})
                     write_strm(strm_string, final_path, VIDEO_TYPES.EPISODE, show['title'], show['year'], slug, season_num, ep_num, require_source=require_source)
 
