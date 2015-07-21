@@ -1,3 +1,8 @@
+[B]Version 0.0.5[/B]
+- Add iconic icons
+- Add fanart to salty themes
+- Add Simply Elegant theme
+
 [B]Version 0.0.4[/B]
 - Add additional DK Themes
 - Update Iconic Images
