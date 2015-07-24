@@ -3,8 +3,9 @@ __all__ = ['scraper', 'local_scraper', 'pw_scraper', 'uflix_scraper', 'watchseri
            'iwatch_scraper', 'ororotv_scraper', 'view47_scraper', 'vidics_scraper', 'oneclickwatch_scraper', 'istreamhd_scraper', 'losmovies_scraper', 'movie4k_scraper',
            'noobroom_scraper', 'solar_scraper', 'vkbox_scraper', 'directdl_scraper', 'movietv_scraper', 'moviesonline7_scraper', 'streamallthis_scraper', 'afdah_scraper',
            'streamtv_scraper', 'moviestorm_scraper', 'wmo_scraper', 'zumvo_scraper', 'wso_scraper', 'tvrelease_scraper', 'hdmz_scraper', 'ch131_scraper', 'watchfree_scraper',
-           'rlssource_scraper', 'pftv_scraper', 'flixanity_scraper', 'cmz_scraper', 'movienight_scraper', 'gvcenter_scraper', 'alluc_scraper', 'afdahorg_scraper', 'xmovies8_scraper',
-           'yifystreaming_scraper', 'mintmovies_scraper', 'playbox_scraper', 'shush_proxy', 'mvsnap_scraper', 'pubfilm_scraper']
+           'pftv_scraper', 'flixanity_scraper', 'cmz_scraper', 'movienight_scraper', 'gvcenter_scraper', 'alluc_scraper', 'afdahorg_scraper', 'xmovies8_scraper',
+           'yifystreaming_scraper', 'mintmovies_scraper', 'playbox_scraper', 'shush_proxy', 'mvsnap_scraper', 'pubfilm_scraper', 'pctf_scraper', 'rlssource_scraper',
+           'couchtunerv1_scraper', 'couchtunerv2_scraper', 'tunemovie_scraper']
 
 import re
 import os
@@ -18,7 +19,7 @@ from . import scraper  # just to avoid editor warning
 from . import *
 
 class ScraperVideo:
-    def __init__(self, video_type, title, year, slug, season='', episode='', ep_title='', ep_airdate=''):
+    def __init__(self, video_type, title, year, trakt_id, season='', episode='', ep_title='', ep_airdate=''):
         assert(video_type in (VIDEO_TYPES.__dict__[k] for k in VIDEO_TYPES.__dict__ if not k.startswith('__')))
         self.video_type = video_type
         self.title = title
@@ -26,7 +27,7 @@ class ScraperVideo:
         self.season = season
         self.episode = episode
         self.ep_title = ep_title
-        self.slug = slug
+        self.trakt_id = trakt_id
         self.ep_airdate = None
         if ep_airdate:
             try: self.ep_airdate = datetime.datetime.strptime(ep_airdate, "%Y-%m-%d").date()

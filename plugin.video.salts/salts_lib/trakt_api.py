@@ -185,33 +185,33 @@ class Trakt_API():
         params = {'extended': 'full,images', 'auth': True}
         return self.__call_trakt(url, params=params, auth=True, cache_limit=24, cached=cached)
 
-    def get_seasons(self, slug):
-        url = '/shows/%s/seasons' % (slug)
+    def get_seasons(self, show_id):
+        url = '/shows/%s/seasons' % (show_id)
         params = {'extended': 'full,images'}
         return self.__call_trakt(url, params=params, cache_limit=12)
 
-    def get_episodes(self, slug, season):
-        url = '/shows/%s/seasons/%s' % (slug, season)
+    def get_episodes(self, show_id, season):
+        url = '/shows/%s/seasons/%s' % (show_id, season)
         params = {'extended': 'full,images'}
         return self.__call_trakt(url, params=params, cache_limit=1)
 
-    def get_show_details(self, slug):
-        url = '/shows/%s' % (slug)
+    def get_show_details(self, show_id):
+        url = '/shows/%s' % (show_id)
         params = {'extended': 'full,images'}
         return self.__call_trakt(url, params=params, cache_limit=24 * 7)
 
-    def get_episode_details(self, slug, season, episode):
-        url = '/shows/%s/seasons/%s/episodes/%s' % (slug, season, episode)
+    def get_episode_details(self, show_id, season, episode):
+        url = '/shows/%s/seasons/%s/episodes/%s' % (show_id, season, episode)
         params = {'extended': 'full,images'}
         return self.__call_trakt(url, params=params, cache_limit=8)
 
-    def get_movie_details(self, slug):
-        url = '/movies/%s' % (slug)
+    def get_movie_details(self, show_id):
+        url = '/movies/%s' % (show_id)
         params = {'extended': 'full,images'}
         return self.__call_trakt(url, params=params, cache_limit=8)
 
-    def get_people(self, section, slug, full=False):
-        url = '/%s/%s/people' % (TRAKT_SECTIONS[section], slug)
+    def get_people(self, section, show_id, full=False):
+        url = '/%s/%s/people' % (TRAKT_SECTIONS[section], show_id)
         params = {'extended': 'full,images'} if full else None
         return self.__call_trakt(url, params=params, cache_limit=24 * 30)
 
@@ -227,15 +227,21 @@ class Trakt_API():
         url = '/users/me/collection/%s' % (TRAKT_SECTIONS[section])
         params = {'extended': 'full,images'} if full else None
         response = self.__call_trakt(url, params=params, cached=cached)
-        return [item[TRAKT_SECTIONS[section][:-1]] for item in response]
+        result = []
+        for item in response:
+            element = item[TRAKT_SECTIONS[section][:-1]]
+            if section == SECTIONS.TV:
+                element['seasons'] = item['seasons']
+            result.append(element)
+        return result
 
     def get_watched(self, section, full=False, cached=True):
         url = '/sync/watched/%s' % (TRAKT_SECTIONS[section])
         params = {'extended': 'full,images'} if full else None
         return self.__call_trakt(url, params=params, cached=cached)
 
-    def get_show_progress(self, slug, full=False, hidden=False, specials=False, cached=True):
-        url = '/shows/%s/progress/watched' % (slug)
+    def get_show_progress(self, show_id, full=False, hidden=False, specials=False, cached=True):
+        url = '/shows/%s/progress/watched' % (show_id)
         params = {}
         if full: params['extended'] = 'full,images'
         if hidden: params['hidden'] = 'true'
@@ -259,15 +265,15 @@ class Trakt_API():
         url = '/sync/playback'
         return self.__call_trakt(url, cached=False)
 
-    def get_bookmark(self, slug, season, episode):
+    def get_bookmark(self, show_id, season, episode):
         response = self.get_bookmarks()
         for bookmark in response:
             if not season or not episode:
-                if bookmark['type'] == 'movie' and slug == bookmark['movie']['ids']['slug']:
+                if bookmark['type'] == 'movie' and show_id == bookmark['movie']['ids']['trakt']:
                     return bookmark['progress']
             else:
-                # log_utils.log('Resume: %s, %s, %s, %s' % (bookmark, slug, season, episode), xbmc.LOGDEBUG)
-                if bookmark['type'] == 'episode' and slug == bookmark['show']['ids']['slug'] and bookmark['episode']['season'] == int(season) and bookmark['episode']['number'] == int(episode):
+                # log_utils.log('Resume: %s, %s, %s, %s' % (bookmark, show_id, season, episode), xbmc.LOGDEBUG)
+                if bookmark['type'] == 'episode' and show_id == bookmark['show']['ids']['trakt'] and bookmark['episode']['season'] == int(season) and bookmark['episode']['number'] == int(episode):
                     return bookmark['progress']
 
     def rate(self, section, item, rating, season='', episode=''):
