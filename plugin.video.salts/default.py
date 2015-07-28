@@ -174,6 +174,7 @@ def browse_menu(section):
     if utils.menu_on('trending'): kodi.create_item({'mode': MODES.TRENDING, 'section': section}, i18n('trending') % (section_label), thumb=utils.art('trending.png'), fanart=utils.art('fanart.jpg'))
     if utils.menu_on('popular'): kodi.create_item({'mode': MODES.POPULAR, 'section': section}, i18n('popular') % (section_label), thumb=utils.art('popular.png'), fanart=utils.art('fanart.jpg'))
     if utils.menu_on('recent'): kodi.create_item({'mode': MODES.RECENT, 'section': section}, i18n('recently_updated') % (section_label), thumb=utils.art('recent.png'), fanart=utils.art('fanart.jpg'))
+    add_section_lists(section)
     if TOKEN:
         if utils.menu_on('recommended'): kodi.create_item({'mode': MODES.RECOMMEND, 'section': section}, i18n('recommended') % (section_label), thumb=utils.art('recommended.png'), fanart=utils.art('fanart.jpg'))
         if utils.menu_on('collection'): add_refresh_item({'mode': MODES.SHOW_COLLECTION, 'section': section}, i18n('my_collection') % (section_label2), utils.art('collection.png'), utils.art('fanart.jpg'))
@@ -181,7 +182,8 @@ def browse_menu(section):
         if utils.menu_on('subscriptions'): kodi.create_item({'mode': MODES.MANAGE_SUBS, 'section': section}, i18n('my_subscriptions'), thumb=utils.art('my_subscriptions.png'), fanart=utils.art('fanart.jpg'))
         if utils.menu_on('watchlist'): kodi.create_item({'mode': MODES.SHOW_WATCHLIST, 'section': section}, i18n('my_watchlist'), thumb=utils.art('my_watchlist.png'), fanart=utils.art('fanart.jpg'))
         if utils.menu_on('my_lists'): kodi.create_item({'mode': MODES.MY_LISTS, 'section': section}, i18n('my_lists'), thumb=utils.art('my_lists.png'), fanart=utils.art('fanart.jpg'))
-#     if utils.menu_on('other_lists'): kodi.add_directory({'mode': MODES.OTHER_LISTS, 'section': section}, {'title': i18n('other_lists')}, img=utils.art('other_lists.png'), fanart=utils.art('fanart.jpg'))
+    if utils.menu_on('liked_lists'): add_refresh_item({'mode': MODES.LIKED_LISTS, 'section': section}, i18n('liked_lists'), utils.art('liked_lists.png'), utils.art('fanart.jpg'))
+    if utils.menu_on('other_lists'): kodi.create_item({'mode': MODES.OTHER_LISTS, 'section': section}, i18n('other_lists'), thumb=utils.art('other_lists.png'), fanart=utils.art('fanart.jpg'))
     if section == SECTIONS.TV:
         if TOKEN:
             if utils.menu_on('progress'): add_refresh_item({'mode': MODES.SHOW_PROGRESS}, i18n('my_next_episodes'), utils.art('my_progress.png'), utils.art('fanart.jpg'))
@@ -196,6 +198,22 @@ def browse_menu(section):
     if utils.menu_on('search'): add_search_item({'mode': MODES.RECENT_SEARCH, 'section': section}, i18n('recent_searches'), utils.art(section_params['search_img']), MODES.CLEAR_RECENT)
     if utils.menu_on('search'): add_search_item({'mode': MODES.SAVED_SEARCHES, 'section': section}, i18n('saved_searches'), utils.art(section_params['search_img']), MODES.CLEAR_SAVED)
     kodi.end_of_directory()
+
+def add_section_lists(section):
+    main_list = []
+    main_str = kodi.get_setting('%s_main' % (section))
+    if main_str:
+        main_list = main_str.split('|')
+        other_dict = {'%s@%s' % (item[1], item[0]): item for item in db_connection.get_other_lists(section)}
+        if TOKEN:
+            lists_dict = {user_list['ids']['slug']: user_list for user_list in trakt_api.get_lists()}
+    
+    for list_str in main_list:
+        if '@' not in list_str:
+            if TOKEN:
+                add_list_item(section, lists_dict[list_str])
+        else:
+            add_other_list_item(MODES.OTHER_LISTS, section, other_dict[list_str])
 
 def add_refresh_item(queries, label, thumb, fanart):
     refresh_queries = {'mode': MODES.FORCE_REFRESH, 'refresh_mode': queries['mode']}
@@ -235,6 +253,8 @@ def force_refresh(refresh_mode, section=None, slug=None, username=None):
         trakt_api.get_friends_activity(section)
     elif refresh_mode == MODES.SHOW_LIST:
         trakt_api.show_list(slug, section, username, cached=False)
+    elif refresh_mode == MODES.LIKED_LISTS:
+        trakt_api.get_liked_lists(cached=False)
     else:
         log_utils.log('Force refresh on unsupported mode: |%s|' % (refresh_mode))
         return
@@ -413,18 +433,40 @@ def browse_lists(section):
     lists.insert(0, {'name': 'watchlist', 'ids': {'slug': utils.WATCHLIST_SLUG}})
     total_items = len(lists)
     for user_list in lists:
-        ids = user_list['ids']
-        menu_items = []
-        queries = {'mode': MODES.SET_FAV_LIST, 'slug': ids['slug'], 'section': section}
-        menu_items.append((i18n('set_fav_list'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
-        queries = {'mode': MODES.SET_SUB_LIST, 'slug': ids['slug'], 'section': section}
-        menu_items.append((i18n('set_sub_list'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
-        queries = {'mode': MODES.COPY_LIST, 'slug': COLLECTION_SLUG, 'section': section, 'target_slug': ids['slug']}
-        menu_items.append((i18n('import_collection'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
+        add_list_item(section, user_list, total_items)
+    kodi.end_of_directory()
 
-        queries = {'mode': MODES.SHOW_LIST, 'section': section, 'slug': ids['slug']}
-        kodi.create_item(queries, user_list['name'], thumb=utils.art('list.png'), fanart=utils.art('fanart.jpg'), is_folder=True,
-                         total_items=total_items, menu_items=menu_items, replace_menu=True)
+def add_list_item(section, user_list, total_items=0):
+    ids = user_list['ids']
+    menu_items = []
+    queries = {'mode': MODES.SET_FAV_LIST, 'slug': ids['slug'], 'section': section}
+    menu_items.append((i18n('set_fav_list'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
+    queries = {'mode': MODES.SET_SUB_LIST, 'slug': ids['slug'], 'section': section}
+    menu_items.append((i18n('set_sub_list'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
+    queries = {'mode': MODES.COPY_LIST, 'slug': COLLECTION_SLUG, 'section': section, 'target_slug': ids['slug']}
+    menu_items.append((i18n('import_collection'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
+    if ids['slug'] != utils.WATCHLIST_SLUG:
+        if ids['slug'] in kodi.get_setting('%s_main' % (section)).split('|'):
+            label = i18n('remove_from_main')
+            action = 'remove'
+        else:
+            label = i18n('add_to_main')
+            action = 'add'
+        queries = {'mode': MODES.TOGGLE_TO_MENU, 'action': action, 'section': section, 'slug': ids['slug']}
+        menu_items.append((label, 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
+    
+    queries = {'mode': MODES.SHOW_LIST, 'section': section, 'slug': ids['slug']}
+    kodi.create_item(queries, user_list['name'], thumb=utils.art('list.png'), fanart=utils.art('fanart.jpg'), is_folder=True,
+                     total_items=total_items, menu_items=menu_items, replace_menu=True)
+
+@url_dispatcher.register(MODES.LIKED_LISTS, ['section'])
+def browse_liked_lists(section):
+    liked_lists = trakt_api.get_liked_lists()
+    print liked_lists
+    total_items = len(liked_lists)
+    for liked_list in liked_lists:
+        list_item = (liked_list['list']['user']['username'], liked_list['list']['ids']['slug'])
+        add_other_list_item(MODES.LIKED_LISTS, section, list_item, total_items)
     kodi.end_of_directory()
 
 @url_dispatcher.register(MODES.OTHER_LISTS, ['section'])
@@ -435,30 +477,43 @@ def browse_other_lists(section):
     lists = db_connection.get_other_lists(section)
     total_items = len(lists)
     for other_list in lists:
-        try:
-            header = trakt_api.get_list_header(other_list[1], other_list[0])
-        except urllib2.HTTPError as e:
-            if e.code == 404:
-                header = None
-            else:
-                raise
+        add_other_list_item(MODES.OTHER_LISTS, section, other_list, total_items)
+    kodi.end_of_directory()
 
-        if header:
-            found = True
-            if other_list[2]:
-                name = other_list[2]
-            else:
-                name = header['name']
+def add_other_list_item(mode, section, other_list, total_items=0):
+    try:
+        header = trakt_api.get_list_header(other_list[1], other_list[0])
+    except TraktNotFoundError:
+        header = None
+
+    if header:
+        found = True
+        if len(other_list) >= 3 and other_list[2]:
+            name = other_list[2]
         else:
-            name = other_list[1]
-            found = False
+            name = header['name']
+    else:
+        name = other_list[1]
+        found = False
 
-        menu_items = []
-        if found:
-            queries = {'mode': MODES.FORCE_REFRESH, 'refresh_mode': MODES.SHOW_LIST, 'section': section, 'slug': other_list[1], 'username': other_list[0]}
-            menu_items.append((i18n('force_refresh'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
-            queries = {'mode': MODES.COPY_LIST, 'section': section, 'slug': other_list[1], 'username': other_list[0]}
-            menu_items.append((i18n('copy_to_my_list'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
+    menu_items = []
+    if found:
+        queries = {'mode': MODES.FORCE_REFRESH, 'refresh_mode': MODES.SHOW_LIST, 'section': section, 'slug': other_list[1], 'username': other_list[0]}
+        menu_items.append((i18n('force_refresh'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
+        queries = {'mode': MODES.COPY_LIST, 'section': section, 'slug': other_list[1], 'username': other_list[0]}
+        menu_items.append((i18n('copy_to_my_list'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
+
+    list_str = '%s@%s' % (other_list[1], other_list[0])
+    if list_str in kodi.get_setting('%s_main' % (section)).split('|'):
+        label = i18n('remove_from_main')
+        action = 'remove'
+    else:
+        label = i18n('add_to_main')
+        action = 'add'
+    queries = {'mode': MODES.TOGGLE_TO_MENU, 'action': action, 'section': section, 'slug': other_list[1], 'username': other_list[0]}
+    menu_items.append((label, 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
+    
+    if mode == MODES.OTHER_LISTS:
         queries = {'mode': MODES.ADD_OTHER_LIST, 'section': section, 'username': other_list[0]}
         menu_items.append((i18n('add_more_from') % (other_list[0]), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
         queries = {'mode': MODES.REMOVE_LIST, 'section': section, 'slug': other_list[1], 'username': other_list[0]}
@@ -466,14 +521,40 @@ def browse_other_lists(section):
         queries = {'mode': MODES.RENAME_LIST, 'section': section, 'slug': other_list[1], 'username': other_list[0], 'name': name}
         menu_items.append((i18n('rename_list'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
 
-        if found:
-            queries = {'mode': MODES.SHOW_LIST, 'section': section, 'slug': other_list[1], 'username': other_list[0]}
-        else:
-            queries = {'mode': MODES.OTHER_LISTS, 'section': section}
-        label = '[[COLOR blue]%s[/COLOR]] %s' % (other_list[0], name)
+    if found:
+        queries = {'mode': MODES.SHOW_LIST, 'section': section, 'slug': other_list[1], 'username': other_list[0]}
+    else:
+        queries = {'mode': MODES.OTHER_LISTS, 'section': section}
+    label = '[[COLOR blue]%s[/COLOR]] %s' % (other_list[0], name)
 
-        kodi.create_item(queries, label, thumb=utils.art('list.png'), fanart=utils.art('fanart.jpg'), is_folder=True, total_items=total_items, menu_items=menu_items, replace_menu=True)
-    kodi.end_of_directory()
+    kodi.create_item(queries, label, thumb=utils.art('list.png'), fanart=utils.art('fanart.jpg'), is_folder=True, total_items=total_items, menu_items=menu_items, replace_menu=True)
+
+@url_dispatcher.register(MODES.TOGGLE_TO_MENU, ['action', 'section', 'slug'], ['username'])
+def toggle_to_menu(action, section, slug, username=None):
+    if username is None:
+        list_str = slug
+    else:
+        list_str = '%s@%s' % (slug, username)
+
+    setting = '%s_main' % (section)
+    main_str = kodi.get_setting(setting)
+    if main_str:
+        main_list = main_str.split('|')
+    else:
+        main_list = []
+         
+    if action == 'add':
+        main_list.append(list_str)
+    else:
+        for i, item in enumerate(main_list):
+            if item == list_str:
+                del main_list[i]
+                break
+
+    main_str = '|'.join(main_list)
+    print main_str
+    kodi.set_setting(setting, main_str)
+    xbmc.executebuiltin("XBMC.Container.Refresh")
 
 @url_dispatcher.register(MODES.REMOVE_LIST, ['section', 'username', 'slug'])
 def remove_list(section, username, slug):
@@ -502,7 +583,7 @@ def add_other_list(section, username=None):
     slug = pick_list(None, section, username)
     if slug:
         db_connection.add_other_list(section, username, slug)
-    xbmc.executebuiltin("XBMC.Container.Refresh")
+        xbmc.executebuiltin("XBMC.Container.Refresh")
 
 @url_dispatcher.register(MODES.SHOW_LIST, ['section', 'slug'], ['username'])
 def show_list(section, slug, username=None):
@@ -1327,10 +1408,11 @@ def copy_list(section, slug, username=None, target_slug=None):
         copy_item = {'type': TRAKT_SECTIONS[section][:-1], query['id_type']: query['show_id']}
         copy_items.append(copy_item)
     response = add_many_to_list(section, copy_items, target_slug)
-    added = sum(response['added'].values())
-    exists = sum(response['existing'].values())
-    not_found = sum([len(item) for item in response['not_found'].values()])
-    kodi.notify(msg=i18n('list_copied') % (added, exists, not_found), duration=5000)
+    if response:
+        added = sum(response['added'].values())
+        exists = sum(response['existing'].values())
+        not_found = sum([len(item) for item in response['not_found'].values()])
+        kodi.notify(msg=i18n('list_copied') % (added, exists, not_found), duration=5000)
 
 @url_dispatcher.register(MODES.TOGGLE_TITLE, ['trakt_id'])
 def toggle_title(trakt_id):
