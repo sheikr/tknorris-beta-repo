@@ -364,7 +364,12 @@ class Trakt_API():
                     log_utils.log('Trakt Call: %s, header: %s, data: %s' % (url, headers, data), xbmc.LOGDEBUG)
                     request = urllib2.Request(url, data=json_data, headers=headers)
                     f = urllib2.urlopen(request, timeout=self.timeout)
-                    result = f.read()
+                    result = ''
+                    while True:
+                        data = f.read()
+                        if not data: break
+                        result += data
+
                     db_connection.cache_url(url, result)
                     break
                 except (ssl.SSLError, socket.timeout)  as e:
@@ -385,14 +390,14 @@ class Trakt_API():
                         elif e.code == 401 or e.code == 405:
                             if auth_retry or url.endswith('/token'):
                                 self.token = None
-                                kodi.get_setting('trakt_oauth_token', '')
-                                kodi.get_setting('trakt_refresh_token', '')
+                                kodi.set_setting('trakt_oauth_token', '')
+                                kodi.set_setting('trakt_refresh_token', '')
                                 raise TraktError('Trakt Call Authentication Failed (%s)' % (e.code))
                             else:
                                 result = self.get_token()
                                 self.token = result['access_token']
-                                kodi.get_setting('trakt_oauth_token', result['access_token'])
-                                kodi.get_setting('trakt_refresh_token', result['refresh_token'])
+                                kodi.set_setting('trakt_oauth_token', result['access_token'])
+                                kodi.set_setting('trakt_refresh_token', result['refresh_token'])
                                 auth_retry = True
                         elif e.code == 404:
                             raise TraktNotFoundError()
