@@ -1,7 +1,7 @@
 # Kodi Media Center language file
 # Addon Name: Trakt
 # Addon id: script.trakt
-# Addon Provider: Trakt.tv
+# Addon Provider: Trakt.tv, Razze
 msgid ""
 msgstr ""
 "Project-Id-Version: XBMC Addons\n"
@@ -221,8 +221,8 @@ msgid "Sync collection on library update or cleaning"
 msgstr "Sincronizza la collezione all'aggiornamento o alla pulizia della libreria"
 
 msgctxt "#32056"
-msgid "Show notifications"
-msgstr "Mostra le notifiche"
+msgid "Show sync notifications"
+msgstr "Mostra notifiche sincronizzazione"
 
 msgctxt "#32057"
 msgid "Remove deleted movies from Trakt collection"
@@ -231,10 +231,6 @@ msgstr "Rimuovi i film cancellati dalla collezione su Trakt"
 msgctxt "#32058"
 msgid "Remove deleted TV episodes from Trakt collection"
 msgstr "Rimuovi gli episodi TV cancellati dalla collezione su Trakt"
-
-msgctxt "#32059"
-msgid "Show marked as watched notification"
-msgstr "Mostra la notifica \"segnato come visto\""
 
 msgctxt "#32060"
 msgid "Hide notifications during playback"
@@ -541,36 +537,36 @@ msgid "Remove from Watchlist"
 msgstr "Rimuovi dalla lista \"Da Guardare\""
 
 msgctxt "#32136"
-msgid "Add to Watchlist"
-msgstr "Aggiungi alla lista \"Da Guardare\""
+msgid "Add to watchlist"
+msgstr "Aggiungi a lista di riproduzione"
 
 msgctxt "#32137"
-msgid "Rate this Movie"
+msgid "Rate this movie"
 msgstr "Vota questo film"
 
 msgctxt "#32138"
-msgid "Rate this Show"
+msgid "Rate this show"
 msgstr "Vota questa serie"
 
 msgctxt "#32139"
-msgid "Rate this Episode"
+msgid "Rate this episode"
 msgstr "Vota questo episodio"
 
 msgctxt "#32140"
-msgid "Toggle Watched"
-msgstr "Rimuovi dai Già Visti"
+msgid "Toggle watched"
+msgstr "Attiva/Disattiva già visto"
 
 msgctxt "#32141"
-msgid "Manage All Lists"
+msgid "Manage all lists"
 msgstr "Gestisci tutte le liste"
 
 msgctxt "#32142"
-msgid "Update All Tags"
+msgid "Update all tags"
 msgstr "Aggiorna tutti i tag"
 
 msgctxt "#32143"
-msgid "Synchronize Library"
-msgstr "Sincronizza la libreria"
+msgid "Synchronize library"
+msgstr "Sincronizza Libreria"
 
 msgctxt "#32144"
 msgid "How do I authorize the trakt addon to access my trakt.tv account?"
@@ -616,9 +612,9 @@ msgctxt "#32157"
 msgid "Account Authorization"
 msgstr "Autorizzazione account"
 
-msgctxt "#32158"
-msgid "To authorize the trakt addon to access your trakt.tv account:"
-msgstr "Per autorizzare l'addon Trakt ad accedere al tuo account Trakt.tv:"
+msgctxt "#32159"
+msgid "Visit {0} or scan the QR Code below."
+msgstr "Visita {0} o scansiona il QR Code qui sotto."
 
 msgctxt "#32160"
 msgid "Authorize the trakt addon to access your account."
@@ -639,3 +635,11 @@ msgstr "Utente"
 msgctxt "#32164"
 msgid "Fallback to Title/Year matching if necessary"
 msgstr "Utilizza la corrispondenza titolo/anno se necessario"
+
+msgctxt "#32165"
+msgid "Trakt - Added to watchlist"
+msgstr "Trakt - Aggiunto a lista da guardare"
+
+msgctxt "#32166"
+msgid "Trakt - Failed adding to watchlist"
+msgstr "Trakt - Impossibile aggiungere a lista da guardare"

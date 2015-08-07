@@ -145,18 +145,20 @@ def checkExclusion(fullpath):
     return False
 
 def getFormattedItemName(type, info):
-    s = None
-    if isShow(type):
-        s = info['title']
-    elif isEpisode(type):
-            s = "S%02dE%02d - %s" % (info['season'], info['number'], info['title'])
-    elif isSeason(type):
-        if info['season'] > 0:
-            s = "%s - Season %d" % (info['title'], info['season'])
-        else:
-            s = "%s - Specials" % info['title']
-    elif isMovie(type):
-        s = "%s (%s)" % (info['title'], info['year'])
+    try:
+        if isShow(type):
+            s = info['title']
+        elif isEpisode(type):
+                s = "S%02dE%02d - %s" % (info['season'], info['number'], info['title'])
+        elif isSeason(type):
+            if info['season'] > 0:
+                s = "%s - Season %d" % (info['title'], info['season'])
+            else:
+                s = "%s - Specials" % info['title']
+        elif isMovie(type):
+            s = "%s (%s)" % (info['title'], info['year'])
+    except KeyError:
+        s = ''
     return s.encode('utf-8', 'ignore')
 
 def getShowDetailsFromKodi(showID, fields):
@@ -333,7 +335,7 @@ def findEpisodeMatchInList(id, seasonNumber, episodeNumber, list, idType):
 def kodiRpcToTraktMediaObject(type, data, mode='collected'):
     if type == 'show':
         id = data.pop('imdbnumber')
-        data['ids'], _ = parseIdToTraktIds(id, type)
+        data['ids'] = parseIdToTraktIds(id, type)[0]
         del(data['label'])
         return data
     elif type == 'episode':
@@ -380,7 +382,7 @@ def kodiRpcToTraktMediaObject(type, data, mode='collected'):
         data['collected'] = 1  # this is in our kodi so it should be collected
         data['watched'] = 1 if data['plays'] > 0 else 0
         id = data.pop('imdbnumber')
-        data['ids'], _ = parseIdToTraktIds(id, type)
+        data['ids'] = parseIdToTraktIds(id, type)[0]
         del(data['label'])
         return data
     else:
@@ -495,6 +497,9 @@ def parseIdToTraktIds(id, type):
     elif id.isdigit() and (isEpisode(type) or isSeason(type) or isShow(type)):
         data['tvdb'] = id
         id_type = 'tvdb'
+    else:
+        data['slug'] = id
+        id_type = 'slug'
     return data, id_type
 
 def getMediaType():
@@ -508,3 +513,17 @@ def getMediaType():
         return "movie"
     else:
         return None
+
+def best_id(ids):
+    if 'trakt' in ids:
+        return ids['trakt']
+    elif 'imdb' in ids:
+        return ids['imdb']
+    elif 'tmdb' in ids:
+        return ids['tmdb']
+    elif 'tvdb' in ids:
+        return ids['tvdb']
+    elif 'tvrage' in ids:
+        return ids['tvrage']
+    elif 'slug' in ids:
+        return ids['slug']

@@ -115,7 +115,7 @@ class Scrobbler():
                 if 'id' in self.curVideo:
                     self.curVideoInfo = utilities.kodiRpcToTraktMediaObject('movie', utilities.getMovieDetailsFromKodi(self.curVideo['id'], ['imdbnumber', 'title', 'year', 'file', 'lastplayed', 'playcount']))
                 elif 'video_ids' in self.curVideo:
-                    self.curVideoInfo = {'ids': self.curVideo['video_ids'], 'title': self.curVideo['title'], 'year': self.curVideo['year']}
+                    self.curVideoInfo = {'ids': self.curVideo['video_ids']}
                 elif 'title' in self.curVideo and 'year' in self.curVideo:
                     self.curVideoInfo = {'title': self.curVideo['title'], 'year': self.curVideo['year']}
 
@@ -138,7 +138,7 @@ class Scrobbler():
                         self.watchedTime = 0
                         return
                 elif 'video_ids' in self.curVideo and 'season' in self.curVideo and 'episode' in self.curVideo:
-                    self.curVideoInfo = {'title': self.curVideo['title'], 'season': self.curVideo['season'], 'number': self.curVideo['episode']}
+                    self.curVideoInfo = {'season': self.curVideo['season'], 'number': self.curVideo['episode']}
                     self.traktShowSummary = {'ids': self.curVideo['video_ids']}
                 elif 'title' in self.curVideo and 'season' in self.curVideo and 'episode' in self.curVideo:
                     self.curVideoInfo = {'title': self.curVideo['title'], 'season': self.curVideo['season'],
@@ -159,40 +159,33 @@ class Scrobbler():
             self.isPlaying = True
             self.isPaused = False
 
+            result = {}
             if utilities.getSettingAsBool('scrobble_movie') or utilities.getSettingAsBool('scrobble_episode'):
                 result = self.__scrobble('start')
-            elif utilities.getSettingAsBool('rate_movie') and utilities.isMovie(self.curVideo['type']):
-                result = {'movie': self.traktapi.getMovieSummary(self.curVideoInfo['ids']['imdb']).to_dict()}
-            elif utilities.getSettingAsBool('rate_episode') and utilities.isEpisode(self.curVideo['type']):
-                data, id_type = utilities.parseIdToTraktIds(str(self.traktShowSummary['ids']['tvdb']), self.curVideo['type'])
-                ids = self.traktapi.getIdLookup(data[id_type], id_type)
-                trakt_id = dict(ids[0].keys)['trakt']
-                result = {'show': self.traktapi.getShowSummary(trakt_id).to_dict(),
-                          'episode': self.traktapi.getEpisodeSummary(trakt_id, self.curVideoInfo['season'],
-                                                                     self.curVideoInfo['number']).to_dict()}
+            elif utilities.getSettingAsBool('rate_movie') and utilities.isMovie(self.curVideo['type']) and 'ids' in self.curVideoInfo:
+                result = {'movie': self.traktapi.getMovieSummary(utilities.best_id(self.curVideoInfo['ids'])).to_dict()}
+            elif utilities.getSettingAsBool('rate_episode') and utilities.isEpisode(self.curVideo['type']) and 'ids' in self.traktShowSummary:
+                best_id = utilities.best_id(self.traktShowSummary['ids'])
+                result = {'show': self.traktapi.getShowSummary(best_id).to_dict(),
+                          'episode': self.traktapi.getEpisodeSummary(best_id, self.curVideoInfo['season'], self.curVideoInfo['number']).to_dict()}
+                result['episode']['season'] = self.curVideoInfo['season']
 
             self.__preFetchUserRatings(result)
 
     def __preFetchUserRatings(self, result):
         if result:
             if utilities.isMovie(self.curVideo['type']) and utilities.getSettingAsBool('rate_movie'):
-                # pre-get sumamry information, for faster rating dialog.
+                # pre-get summary information, for faster rating dialog.
                 logger.debug("Movie rating is enabled, pre-fetching summary information.")
-                if result['movie']['ids']['imdb']:
-                    self.curVideoInfo['user'] = {'ratings': self.traktapi.getMovieRatingForUser(result['movie']['ids']['imdb'])}
-                    self.curVideoInfo['ids'] = result['movie']['ids']
-                else:
-                    logger.debug("'%s (%d)' has no valid id, can't get rating." % (self.curVideoInfo['title'], self.curVideoInfo['year']))
+                self.curVideoInfo = result['movie']
+                self.curVideoInfo['user'] = {'ratings': self.traktapi.getMovieRatingForUser(result['movie']['ids']['trakt'], 'trakt')}
             elif utilities.isEpisode(self.curVideo['type']) and utilities.getSettingAsBool('rate_episode'):
-                # pre-get sumamry information, for faster rating dialog.
+                # pre-get summary information, for faster rating dialog.
                 logger.debug("Episode rating is enabled, pre-fetching summary information.")
-
-                if result['show']['ids']['tvdb']:
-                    self.curVideoInfo['user'] = {'ratings': self.traktapi.getEpisodeRatingForUser(result['show']['ids']['tvdb'], self.curVideoInfo['season'], self.curVideoInfo['number'])}
-                    self.curVideoInfo['ids'] = result['episode']['ids']
-                else:
-                    logger.debug("'%s - S%02dE%02d' has no valid id, can't get rating." % (self.curVideoInfo['showtitle'], self.curVideoInfo['season'], self.curVideoInfo['episode']))
-
+                self.curVideoInfo = result['episode']
+                self.curVideoInfo['user'] = {'ratings': self.traktapi.getEpisodeRatingForUser(result['show']['ids']['trakt'],
+                                                                                              self.curVideoInfo['season'], self.curVideoInfo['number'], 'trakt')}
+            logger.debug('Pre-Fetch result: %s; Info: %s' % (result, self.curVideoInfo))
 
     def playbackResumed(self):
         if not self.isPlaying:
@@ -273,7 +266,7 @@ class Scrobbler():
 
             response = self.traktapi.scrobbleEpisode(self.traktShowSummary, self.curVideoInfo, watchedPercent, status)
 
-            if not response is None:
+            if response is not None:
                 self.__scrobbleNotification(response)
                 logger.debug("Scrobble response: %s" % str(response))
                 return response
