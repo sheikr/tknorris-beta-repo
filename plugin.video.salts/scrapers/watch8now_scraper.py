@@ -24,9 +24,9 @@ from salts_lib import dom_parser
 from salts_lib.constants import VIDEO_TYPES
 from salts_lib.constants import QUALITIES
 
-BASE_URL = 'http://couchtuner.at'
+BASE_URL = 'http://watch8now.so'
 
-class CouchTunerV2_Scraper(scraper.Scraper):
+class Watch8Now_Scraper(scraper.Scraper):
     base_url = BASE_URL
 
     def __init__(self, timeout=scraper.DEFAULT_TIMEOUT):
@@ -39,7 +39,7 @@ class CouchTunerV2_Scraper(scraper.Scraper):
 
     @classmethod
     def get_name(cls):
-        return 'CouchTunerV2'
+        return 'Watch8Now'
 
     def resolve_link(self, link):
         html = self._http_get(link, cache_limit=.5)
@@ -74,12 +74,12 @@ class CouchTunerV2_Scraper(scraper.Scraper):
         return hosters
 
     def get_url(self, video):
-        return super(CouchTunerV1_Scraper, self)._default_get_url(video)
+        return super(Watch8Now_Scraper, self)._default_get_url(video)
 
     def _get_episode_url(self, show_url, video):
         episode_pattern = 'href="([^"]+[sS]%s[eE]%s\.html)"' % (video.season, video.episode)
         title_pattern = 'href="([^"]+[sS]\d+[eE]\d+\.html")(?:[^>]+>){6}([^<]+)'
-        return super(CouchTunerV1_Scraper, self)._default_get_episode_url(show_url, video, episode_pattern, title_pattern)
+        return super(Watch8Now_Scraper, self)._default_get_episode_url(show_url, video, episode_pattern, title_pattern)
 
     def search(self, video_type, title, year):
         search_url = urlparse.urljoin(self.base_url, '/search?q=')
@@ -96,4 +96,4 @@ class CouchTunerV2_Scraper(scraper.Scraper):
         return results
 
     def _http_get(self, url, data=None, cache_limit=8):
-        return super(CouchTunerV1_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, cache_limit=cache_limit)
+        return super(Watch8Now_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, cache_limit=cache_limit)
