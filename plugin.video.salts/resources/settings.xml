@@ -1,7 +1,6 @@
 <settings>
 	<category label="30545">
 	    <setting id="theme" type="enum" label="30500" values="Shine|Luna Blue|Iconic|Simple|SALTy|SALTy (Blended)|SALTy (Blue)|SALTy (Frog)|SALTy (Green)|SALTy (Macaw)|SALTier (Green)|SALTier (Orange)|SALTier (Red)|IGDB|Simply Elegant" default="0"/>
-		<setting id="parallel_mode" type="enum" label="30501" values="Threads|Processes|None" default="0"/>
 		<setting id="calendar-day" type="slider" label="30502" default="0" range="-7,7" option="int"/>
 		<setting id="calendar_time" type="enum" label="30503" default="0" lvalues="30511|30512|30513"/>
 	    <setting id="sort_collection" type="enum" label="30504" lvalues="30514|30515|30516|30517" default="0"/>
@@ -45,7 +44,8 @@
 	</category>
 
 	<category label="Trakt.tv">
-	    <setting id="get_pin" label="30547" type="action" action="RunPlugin(plugin://plugin.video.salts/?mode=get_pin)" option="close"/>
+	    <setting id="get_pin" label="30547" type="action" action="RunPlugin(plugin://plugin.video.salts/?mode=get_pin)" option="close" visible="eq(1,))"/>
+	    <setting id="trakt_user" label="30501" type="action" action="RunPlugin(plugin://plugin.video.salts/?mode=get_pin)" option="close" visible="!eq(0,)"/>
 	    <setting id="use_https" type="bool" label="30548" default="false"/>
 		<setting id="trakt_timeout" type="slider" label="30549" default="30" range="0,120" option="int"/>
 		<setting id="list_size" type="slider" label="30550" default="30" range="1,100" option="int"/>
@@ -94,6 +94,7 @@
 		<setting id="source_timeout" type="slider" label="30578" default="10" range="0,120" option="int"/>
 		<setting id="source_results" type="number" label="30579" default="0"/>
 		<setting id="filter_unusable" type="number" label="30580" default="50"/>
+        <setting id="filter_direct" type="bool" label="30551" default="false"/>
 		<setting id="excl_list" type="text" label="30581" default=""/>
 		<setting id="Episode_quality" type="enum" label="30582" values="HD &amp; SD|HD Only|SD Only" default="0" visible="true"/>
 		<setting id="Movie_quality" type="enum" label="30583" values="HD &amp; SD|HD Only|SD Only" default="0" visible="true"/>

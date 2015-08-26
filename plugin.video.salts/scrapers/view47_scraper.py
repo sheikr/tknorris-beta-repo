@@ -24,6 +24,7 @@ import time
 from salts_lib import dom_parser
 from salts_lib.constants import VIDEO_TYPES
 from salts_lib.constants import QUALITIES
+from salts_lib.constants import USER_AGENT
 
 BASE_URL = 'http://view47.com'
 EPID_URL = '/ip.temp/swf/plugins/ipplugins.php'
@@ -46,20 +47,20 @@ class View47_Scraper(scraper.Scraper):
         return 'view47'
 
     def resolve_link(self, link):
-            url = urlparse.urljoin(self.base_url, link)
-            html = self._http_get(url, cache_limit=.5)
-            match = re.search('file\s*:\s*"([^"]+)', html)
+        url = urlparse.urljoin(self.base_url, link)
+        html = self._http_get(url, cache_limit=.5)
+        match = re.search('file\s*:\s*"([^"]+)', html)
+        if match:
+            return match.group(1)
+        else:
+            match = re.search('<iframe[^<]*src="([^"]+)', html)
             if match:
                 return match.group(1)
             else:
-                match = re.search('<iframe[^<]*src="([^"]+)', html)
+                match = re.search('proxy\.link=([^"]+)', html)
                 if match:
                     return match.group(1)
-                else:
-                    match = re.search('proxy\.link=([^"]+)', html)
-                    if match:
-                        return match.group(1)
-
+        
     def format_source_label(self, item):
         return '[%s] %s' % (item['quality'], item['host'])
 
@@ -71,16 +72,14 @@ class View47_Scraper(scraper.Scraper):
             html = self._http_get(url, cache_limit=.5)
             div = dom_parser.parse_dom(html, 'ul', {'class': 'css_server'})
             if div:
-                div = div[0]
-                for match in re.finditer('href="([^"]+)(?:.*?>){3}([^<]+)', div):
+                for match in re.finditer('href="([^"]+).*?/>(.*?)</p>', div[0]):
                     stream_url, host = match.groups()
-                    print stream_url, host
                     host = host.lower()
                     if host == 'picasa':
+                        stream_url = stream_url + '|User-Agent=%s' % (USER_AGENT)
                         direct = True
+                        host = 'gvideo'
                         quality = QUALITIES.MEDIUM
-                    elif host == '1':
-                        continue
                     else:
                         quality = self._get_quality(video, host, QUALITIES.MEDIUM)
                         direct = False
