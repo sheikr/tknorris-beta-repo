@@ -24,6 +24,7 @@ import string
 import xbmcaddon
 import random
 import xbmcgui
+import xbmc
 from salts_lib import log_utils
 from salts_lib.constants import VIDEO_TYPES
 from salts_lib.constants import QUALITIES
@@ -31,6 +32,7 @@ from salts_lib.constants import QUALITIES
 QUALITY_MAP = {'HD 720P': QUALITIES.HD720, 'DVDRIP / STANDARD DEF': QUALITIES.HIGH, 'DVD SCREENER': QUALITIES.HIGH}
 BASE_URL = 'http://www.icefilms.info'
 LIST_URL = BASE_URL + '/membersonly/components/com_iceplayer/video.php?h=374&w=631&vid=%s&img='
+AJAX_URL = '/membersonly/components/com_iceplayer/video.phpAjaxResp.php?id=%s&s=%s&iqs=&url=&m=%s&cap= &sec=%s&t=%s&ad_url=%s'
 
 class IceFilms_Scraper(scraper.Scraper):
     base_url = BASE_URL
@@ -51,7 +53,7 @@ class IceFilms_Scraper(scraper.Scraper):
         url, query = link.split('?', 1)
         data = urlparse.parse_qs(query, True)
         url = urlparse.urljoin(self.base_url, url)
-        url += '?s=%s&t=%s' % (data['id'][0], data['t'][0])
+        url += '?s=%s&t=%s&app_id=SALTS' % (data['id'][0], data['t'][0])
         list_url = LIST_URL % (data['t'][0])
         headers = {
                    'Referer': list_url
@@ -96,7 +98,10 @@ class IceFilms_Scraper(scraper.Scraper):
                 m_start = int(match.group(1))
                 
                 match = re.search('<iframe[^>]*src="([^"]+)', html)
-                ad_url = urllib.quote(match.group(1))
+                if match:
+                    ad_url = urllib.quote(match.group(1))
+                else:
+                    ad_url = ''
 
                 pattern = '<div class=ripdiv>(.*?)</div>'
                 for container in re.finditer(pattern, html):
@@ -113,10 +118,9 @@ class IceFilms_Scraper(scraper.Scraper):
                         source = {'multi-part': False, 'quality': quality, 'class': self, 'label': label, 'rating': None, 'views': None, 'direct': False}
                         host = re.sub('(<[^>]+>|</span>)', '', host_fragment)
                         source['host'] = host.lower()
-                        s = s_start + random.randint(1, 100)
-                        m = m_start + (s - s_start) + random.randint(1, 100)
-
-                        url = '/membersonly/components/com_iceplayer/video.phpAjaxResp.php?id=%s&s=%s&iqs=&url=&m=%s&cap= &sec=%s&t=%s&ad_url=%s' % (link_id, s, m, secret, t, ad_url)
+                        s = s_start + random.randint(3, 1000)
+                        m = m_start + random.randint(21, 1000)
+                        url = AJAX_URL % (link_id, s, m, secret, t, ad_url)
                         source['url'] = url
                         sources.append(source)
             except Exception as e:
@@ -165,14 +169,17 @@ class IceFilms_Scraper(scraper.Scraper):
         return super(IceFilms_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, headers=headers, cache_limit=cache_limit)
 
     def __show_ice_ad(self, ad_url):
+        if not ad_url: return
         try:
             wdlg = xbmcgui.WindowDialog()
             if not ad_url.startswith('http:'): ad_url = 'http:' + ad_url
+            log_utils.log('Getting ad page: %s' % (ad_url), xbmc.LOGDEBUG)
             html = self._http_get(ad_url, cache_limit=0)
             for match in re.finditer("<img\s+src='([^']+)'\s+width='(\d+)'\s+height='(\d+)'", html):
                 img_url, width, height = match.groups()
                 width = int(width)
                 height = int(height)
+                log_utils.log('Image in page: |%s| - (%dx%d)' % (img_url, width, height), xbmc.LOGDEBUG)
                 if width > 0 and height > 0:
                     left = (1280 - width) / 2
                     img = xbmcgui.ControlImage(left, 0, width, height, img_url)
@@ -185,6 +192,7 @@ class IceFilms_Scraper(scraper.Scraper):
             dialog.ok('Stream All The Sources', 'Continue to Video')
             match = re.search("href='([^']+)", html)
             if match and random.randint(0, 100) < 5:
+                log_utils.log('Link Clicked: %s' % (match.group(1)), xbmc.LOGDEBUG)
                 _html = self._http_get(match.group(1), cache_limit=0)
         finally:
             wdlg.close()
