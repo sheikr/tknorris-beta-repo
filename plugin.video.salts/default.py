@@ -160,12 +160,12 @@ def auto_conf():
         kodi.set_setting('sort3_field', '1')
         kodi.set_setting('sort4_field', '3')
         kodi.set_setting('sort5_field', '4')
-        sso = ['Local', 'DirectDownload.tv', 'VKBox', 'NoobRoom', 'yify-streaming', 'stream-tv.co', 'streamallthis.is', 'PlayBox', 'GVCenter', 'MegaboxHD', 'Shush.se', 'clickplay.to',
+        sso = ['Local', 'DirectDownload.tv', 'VKBox', 'NoobRoom', 'yify-streaming', 'stream-tv.co', 'streamallthis.is', 'Dizilab', 'PlayBox', 'GVCenter', 'MegaboxHD', 'Shush.se', 'clickplay.to',
                'IceFilms', 'ororo.tv', 'afdah.org', 'xmovies8', 'Flixanity', 'hdmz', 'niter.tv', 'yify.tv', 'pubfilm', 'movietv.to', 'popcorntimefree', 'MintMovies', 'MovieNight', 'cmz', 'viooz.ac',
                'view47', 'MoviesHD', 'OnlineMovies', 'MoviesOnline7', 'wmo.ch', 'zumvo.com', 'mvsnap', 'alluc.com', 'MyVideoLinks.eu', 'OneClickWatch', 'RLSSource.net', 'TVRelease.Net',
                'FilmStreaming.in', 'PrimeWire', 'WatchFree.to', 'CouchTunerV2', 'CouchTunerV1', 'Watch8Now', 'pftv', 'wso.ch', 'WatchSeries', 'SolarMovie', 'UFlix.org', 'ch131',
                'moviestorm.eu', 'vidics.ch', 'Movie4K', 'LosMovies', 'MerDB', 'iWatchOnline', '2movies', 'iStreamHD', 'afdah', 'filmikz.ch', 'movie25', 'tunemovie']
-        db_connection.set_setting('source_sort_order', '|'.join(sso))
+        kodi.set_setting('source_sort_order', '|'.join(sso))
         kodi.notify(msg=i18n('auto_conf_complete'))
     
 @url_dispatcher.register(MODES.BROWSE, ['section'])
@@ -347,7 +347,7 @@ def move_to(name):
                     sort_key[key] += 1
 
         sort_key[name] = new_key
-    db_connection.set_setting('source_sort_order', utils.make_source_sort_string(sort_key))
+    kodi.set_setting('source_sort_order', utils.make_source_sort_string(sort_key))
     xbmc.executebuiltin("XBMC.Container.Refresh")
 
 @url_dispatcher.register(MODES.MOVE_SCRAPER, ['name', 'direction', 'other'])
@@ -359,7 +359,7 @@ def move_scraper(name, direction, other):
     elif direction == DIRS.DOWN:
         sort_key[name] -= 1
         sort_key[other] += 1
-    db_connection.set_setting('source_sort_order', utils.make_source_sort_string(sort_key))
+    kodi.set_setting('source_sort_order', utils.make_source_sort_string(sort_key))
     xbmc.executebuiltin("XBMC.Container.Refresh")
 
 @url_dispatcher.register(MODES.TOGGLE_ALL)
@@ -617,6 +617,14 @@ def add_other_list(section, username=None):
 def show_list(section, slug, username=None):
     if slug == utils.WATCHLIST_SLUG:
         items = trakt_api.show_watchlist(section)
+        sort_key = int(kodi.get_setting('sort_watchlist'))
+        if sort_key == 0:
+            items.reverse()
+        elif sort_key == 2:
+            items.sort(key=lambda x: re.sub('^(The |A |An )', '', x['title'], re.I))
+        elif sort_key == 3:
+            items.sort(key=lambda x: x['year'])
+            
     else:
         try:
             if TOKEN:
@@ -642,8 +650,10 @@ def show_collection(section):
     sort_key = int(kodi.get_setting('sort_collection'))
     if sort_key == 1:
         items.reverse()
-    elif sort_key > 0:
-        items.sort(key=lambda x: x[['title', 'year'][sort_key - 2]])
+    elif sort_key == 2:
+        items.sort(key=lambda x: re.sub('^(The |A |An )', '', x['title'], re.I))
+    elif sort_key == 3:
+        items.sort(key=lambda x: x['year'])
 
     # hack aired_episodes to override w/ collected_episodes to workaround trakt.tv cache issue
     if section == SECTIONS.TV:
@@ -1604,15 +1614,22 @@ def import_db():
 
 @url_dispatcher.register(MODES.ADD_TO_LIBRARY, ['video_type', 'title', 'year', 'trakt_id'])
 def man_add_to_library(video_type, title, year, trakt_id):
-    add_to_library(video_type, title, year, trakt_id)
-    if video_type == VIDEO_TYPES.MOVIE and year:
-        msg = '%s (%s)' % (title, year)
-    else:
-        msg = title
-    kodi.notify(msg=i18n('addded_to_lib') % (msg), duration=5000)
+    try:
+        if video_type == VIDEO_TYPES.MOVIE and year:
+            msg = '%s (%s)' % (title, year)
+        else:
+            msg = title
+        add_to_library(video_type, title, year, trakt_id)
+    except Exception as e:
+        kodi.notify(msg=i18n('not_added_to_lib') % (msg, e), duration=5000)
+        return
+    
+    kodi.notify(msg=i18n('added_to_lib') % (msg), duration=5000)
 
 def add_to_library(video_type, title, year, trakt_id):
     log_utils.log('Creating .strm for |%s|%s|%s|%s|' % (video_type, title, year, trakt_id), xbmc.LOGDEBUG)
+    scraper = local_scraper.Local_Scraper()
+    exclude_local = kodi.get_setting('exclude_local') == 'true'
     if video_type == VIDEO_TYPES.TVSHOW:
         save_path = kodi.get_setting('tvshow-folder')
         save_path = xbmc.translatePath(save_path)
@@ -1629,6 +1646,11 @@ def add_to_library(video_type, title, year, trakt_id):
             if kodi.get_setting('include_specials') == 'true' or season_num != 0:
                 episodes = trakt_api.get_episodes(trakt_id, season_num)
                 for episode in episodes:
+                    ep_num = episode['number']
+                    air_date = utils.make_air_date(episode['first_aired'])
+                    if exclude_local and scraper.get_url(ScraperVideo(VIDEO_TYPES.EPISODE, title, year, trakt_id, season_num, ep_num, episode['title'], air_date)):
+                        continue
+                    
                     if utils.show_requires_source(trakt_id):
                         require_source = True
                     else:
@@ -1637,16 +1659,17 @@ def add_to_library(video_type, title, year, trakt_id):
                         else:
                             continue
 
-                    ep_num = episode['number']
                     filename = utils.filename_from_title(show['title'], video_type)
                     filename = filename % ('%02d' % int(season_num), '%02d' % int(ep_num))
                     final_path = os.path.join(make_path(save_path, video_type, show['title'], season=season_num), filename)
-                    air_date = utils.make_air_date(episode['first_aired'])
                     strm_string = kodi.get_plugin_url({'mode': MODES.GET_SOURCES, 'video_type': VIDEO_TYPES.EPISODE, 'title': show['title'], 'year': year, 'season': season_num,
                                                            'episode': ep_num, 'trakt_id': trakt_id, 'ep_title': episode['title'], 'ep_airdate': air_date, 'dialog': True})
                     write_strm(strm_string, final_path, VIDEO_TYPES.EPISODE, show['title'], show['year'], trakt_id, season_num, ep_num, require_source=require_source)
 
     elif video_type == VIDEO_TYPES.MOVIE:
+        if exclude_local and scraper.get_url(ScraperVideo(video_type, title, year, trakt_id)):
+            raise Exception(i18n('local_exists'))
+        
         save_path = kodi.get_setting('movie-folder')
         save_path = xbmc.translatePath(save_path)
         strm_string = kodi.get_plugin_url({'mode': MODES.GET_SOURCES, 'video_type': video_type, 'title': title, 'year': year, 'trakt_id': trakt_id, 'dialog': True})

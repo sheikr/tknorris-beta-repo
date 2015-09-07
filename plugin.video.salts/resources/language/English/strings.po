@@ -850,6 +850,14 @@ msgctxt "#30208"
 msgid "Most Collected All Time"
 msgstr ""
 
+msgctxt "#30209"
+msgid "%s NOT added to library (%s)"
+msgstr ""
+
+msgctxt "#30210"
+msgid "Local Exists"
+msgstr ""
+
 msgctxt "#30500"
 msgid "Addon Theme"
 msgstr ""
@@ -1433,4 +1441,20 @@ msgstr ""
 
 msgctxt "#30641"
 msgid "Show Mosts"
+msgstr ""
+
+msgctxt "#30642"
+msgid "Watchlist Sort Order"
+msgstr ""
+
+msgctxt "#30643"
+msgid "Recently Added"
+msgstr ""
+
+msgctxt "#30644"
+msgid "Previously Added"
+msgstr ""
+
+msgctxt "#30645"
+msgid "Skip movies/episodes that exist locally"
 msgstr ""
