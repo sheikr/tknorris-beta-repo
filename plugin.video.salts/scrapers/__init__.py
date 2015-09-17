@@ -1,22 +1,23 @@
+import re
+import os
+import xbmc
+import datetime
+import time
+from salts_lib import kodi
+from salts_lib import log_utils
+from salts_lib.constants import VIDEO_TYPES
+from . import scraper  # just to avoid editor warning
+
 __all__ = ['scraper', 'local_scraper', 'pw_scraper', 'uflix_scraper', 'watchseries_scraper', 'movie25_scraper', 'merdb_scraper', '2movies_scraper', 'icefilms_scraper',
            'movieshd_scraper', 'yifytv_scraper', 'viooz_scraper', 'filmstreaming_scraper', 'myvideolinks_scraper', 'filmikz_scraper', 'clickplay_scraper', 'nitertv_scraper',
            'iwatch_scraper', 'ororotv_scraper', 'view47_scraper', 'vidics_scraper', 'oneclickwatch_scraper', 'istreamhd_scraper', 'losmovies_scraper', 'movie4k_scraper',
            'noobroom_scraper', 'solar_scraper', 'vkbox_scraper', 'directdl_scraper', 'movietv_scraper', 'moviesonline7_scraper', 'streamallthis_scraper', 'afdah_scraper',
            'streamtv_scraper', 'moviestorm_scraper', 'wmo_scraper', 'zumvo_scraper', 'wso_scraper', 'tvrelease_scraper', 'hdmz_scraper', 'ch131_scraper', 'watchfree_scraper',
-           'pftv_scraper', 'flixanity_scraper', 'cmz_scraper', 'movienight_scraper', 'gvcenter_scraper', 'alluc_scraper', 'afdahorg_scraper', 'xmovies8_scraper',
-           'yifystreaming_scraper', 'mintmovies_scraper', 'playbox_scraper', 'shush_proxy', 'mvsnap_scraper', 'pubfilm_scraper', 'pctf_scraper', 'rlssource_scraper',
-           'couchtunerv1_scraper', 'couchtunerv2_scraper', 'tunemovie_scraper', 'watch8now_scraper', 'megabox_scraper', 'dizilab_scraper', 'beinmovie_scraper',
-           'dizimag_scraper', 'ayyex_scraper']
+           'pftv_scraper', 'flixanity_scraper', 'cmz_scraper', 'movienight_scraper', 'alluc_scraper', 'afdahorg_scraper', 'xmovies8_scraper', 'yifystreaming_scraper',
+           'mintmovies_scraper', 'shush_proxy', 'mvsnap_scraper', 'pubfilm_scraper', 'pctf_scraper', 'rlssource_scraper', 'couchtunerv1_scraper', 'couchtunerv2_scraper',
+           'tunemovie_scraper', 'watch8now_scraper', 'megabox_proxy', 'dizilab_scraper', 'beinmovie_scraper', 'dizimag_scraper', 'ayyex_scraper', 'moviefarsi_scraper',
+           'oneclicktvshows_scraper', 'dizigold_scraper', 'gvcenter_proxy']
 
-import re
-import os
-import xbmcaddon
-import xbmc
-import datetime
-import time
-from salts_lib import log_utils
-from salts_lib.constants import VIDEO_TYPES
-from . import scraper  # just to avoid editor warning
 from . import *
 
 class ScraperVideo:
@@ -40,19 +41,18 @@ class ScraperVideo:
 def update_xml(xml, new_settings, cat_count):
     new_settings.insert(0, '<category label="Scrapers %s">' % (cat_count))
     new_settings.append('    </category>')
-    new_str = '\n'.join(new_settings)
+    new_settings = '\n'.join(new_settings)
     match = re.search('(<category label="Scrapers %s">.*?</category>)' % (cat_count), xml, re.DOTALL | re.I)
     if match:
         old_settings = match.group(1)
         if old_settings != new_settings:
-            xml = xml.replace(old_settings, new_str)
+            xml = xml.replace(old_settings, new_settings)
     else:
         log_utils.log('Unable to match category: %s' % (cat_count), xbmc.LOGWARNING)
     return xml
 
 def update_settings():
-    path = xbmcaddon.Addon().getAddonInfo('path')
-    full_path = os.path.join(path, 'resources', 'settings.xml')
+    full_path = os.path.join(kodi.get_path(), 'resources', 'settings.xml')
     try:
         with open(full_path, 'r') as f:
             xml = f.read()
@@ -65,7 +65,6 @@ def update_settings():
     classes = scraper.Scraper.__class__.__subclasses__(scraper.Scraper)
     for cls in sorted(classes, key=lambda x: x.get_name().upper()):
         new_settings += cls.get_settings()
-
         if len(new_settings) > 90:
             xml = update_xml(xml, new_settings, cat_count)
             new_settings = []

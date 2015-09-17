@@ -18,29 +18,28 @@
 import scraper
 import xbmc
 import os
-import base64
 import time
+import urllib2
+from salts_lib.trans_utils import i18n
 from salts_lib import kodi
 from salts_lib import pyaes
 from salts_lib import log_utils
 from salts_lib.constants import VIDEO_TYPES
 
-BASE_URL = 'http://shush.se'
-PY_URL = 'http://omaha.watchkodi.com/shush_scraper.dat'
-KEY = base64.decodestring('YV9sb25nX2Flc19rZXlfZm9yX3NodXNoX3NjcmFwZXI=')
+BASE_URL = 'http://megaboxhd.com'
 IV = '\0' * 16
 
-class Shush_Proxy(scraper.Scraper):
+class Megabox_Proxy(scraper.Scraper):
     base_url = BASE_URL
     
     def __init__(self, timeout=scraper.DEFAULT_TIMEOUT):
         self.timeout = timeout
         self.__update_scraper_py()
         try:
-            import shush_scraper
-            self.__scraper = shush_scraper.Shush_Scraper(timeout)
+            import megabox_scraper
+            self.__scraper = megabox_scraper.Megabox_Scraper(timeout)
         except Exception as e:
-            log_utils.log('Failure during shush scraper creation: %s' % (e), xbmc.LOGWARNING)
+            log_utils.log('Failure during %s scraper creation: %s' % (self.get_name(), e), xbmc.LOGWARNING)
             self.__scraper = None
    
     @classmethod
@@ -49,7 +48,7 @@ class Shush_Proxy(scraper.Scraper):
     
     @classmethod
     def get_name(cls):
-        return 'Shush.se'
+        return 'MegaboxHD'
     
     def resolve_link(self, link):
         if self.__scraper is not None:
@@ -77,17 +76,33 @@ class Shush_Proxy(scraper.Scraper):
         if self.__scraper is not None:
             return self.__scraper._get_episode_url(show_url, video)
 
+    @classmethod
+    def get_settings(cls):
+        settings = super(Megabox_Proxy, cls).get_settings()
+        name = cls.get_name()
+        settings.append('         <setting id="%s-scraper_url" type="text" label="    %s" default="" visible="eq(-6,true)"/>' % (name, i18n('scraper_location')))
+        settings.append('         <setting id="%s-scraper_key" type="text" label="    %s" option="hidden" default="" visible="eq(-7,true)"/>' % (name, i18n('scraper_key')))
+        return settings
+
     def _http_get(self, url, cache_limit=8):
-        return super(Shush_Proxy, self)._cached_http_get(url, '', self.timeout, cache_limit=cache_limit)
+        return super(Megabox_Proxy, self)._cached_http_get(url, '', self.timeout, cache_limit=cache_limit)
     
     def __update_scraper_py(self):
         try:
-            py_path = os.path.join(kodi.get_path(), 'scrapers', 'shush_scraper.py')
+            py_path = os.path.join(kodi.get_path(), 'scrapers', 'megabox_scraper.py')
             exists = os.path.exists(py_path)
-            if  not exists or (exists and os.path.getmtime(py_path) < time.time() - (4 * 60 * 60)):
-                cipher_text = self._http_get(PY_URL, cache_limit=4)
+            scraper_url = kodi.get_setting('%s-scraper_url' % (self.get_name()))
+            scraper_key = kodi.get_setting('%s-scraper_key' % (self.get_name()))
+            if scraper_url and scraper_key and (not exists or os.path.getmtime(py_path) < time.time() - (4 * 60 * 60)):
+                try:
+                    req = urllib2.urlopen(scraper_url)
+                    cipher_text = req.read()
+                except Exception as e:
+                    log_utils.log('Failure during %s scraper get: %s' % (self.get_name(), e), xbmc.LOGWARNING)
+                    return
+                 
                 if cipher_text:
-                    decrypter = pyaes.Decrypter(pyaes.AESModeOfOperationCBC(KEY, IV))
+                    decrypter = pyaes.Decrypter(pyaes.AESModeOfOperationCBC(scraper_key, IV))
                     new_py = decrypter.feed(cipher_text)
                     new_py += decrypter.feed()
                     
@@ -96,9 +111,9 @@ class Shush_Proxy(scraper.Scraper):
                         with open(py_path, 'r') as f:
                             old_py = f.read()
                     
-                    log_utils.log('shush path: %s, new_py: %s, match: %s' % (py_path, bool(new_py), new_py == old_py), xbmc.LOGDEBUG)
+                    log_utils.log('%s path: %s, new_py: %s, match: %s' % (self.get_name(), py_path, bool(new_py), new_py == old_py), xbmc.LOGDEBUG)
                     if old_py != new_py:
                         with open(py_path, 'w') as f:
                             f.write(new_py)
         except Exception as e:
-            log_utils.log('Failure during shush scraper update: %s' % (e), xbmc.LOGWARNING)
+            log_utils.log('Failure during %s scraper update: %s' % (self.get_name(), e), xbmc.LOGWARNING)
