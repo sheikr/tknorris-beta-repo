@@ -1,3 +1,8 @@
+[B]Version 0.0.6[/B]
+- Updated several themes
+- Updated Simply Elegant
+- Added IGDB Redux
+
 [B]Version 0.0.5[/B]
 - Add iconic icons
 - Add fanart to salty themes
