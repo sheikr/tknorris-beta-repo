@@ -127,6 +127,12 @@
 	</category>
 	
 	<category label="Scrapers 1">
+         <setting id="123Movies-enable" type="bool" label="123Movies Enabled" default="true" visible="true"/>
+         <setting id="123Movies-base_url" type="text" label="    Base Url" default="http://123movies.to" visible="eq(-1,true)"/>
+         <setting id="123Movies-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
+         <setting id="123Movies_try" type="number" default="0" visible="false"/>
+         <setting id="123Movies_fail" type="number" default="0" visible="false"/>
+         <setting id="123Movies_check" type="number" default="0" visible="false"/>
          <setting id="2movies-enable" type="bool" label="2movies Enabled" default="true" visible="true"/>
          <setting id="2movies-base_url" type="text" label="    Base Url" default="http://twomovies.us" visible="eq(-1,true)"/>
          <setting id="2movies-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
@@ -213,15 +219,15 @@
          <setting id="Dizilab_try" type="number" default="0" visible="false"/>
          <setting id="Dizilab_fail" type="number" default="0" visible="false"/>
          <setting id="Dizilab_check" type="number" default="0" visible="false"/>
+    </category>
+
+	<category label="Scrapers 2">
          <setting id="Dizimag-enable" type="bool" label="Dizimag Enabled" default="true" visible="true"/>
          <setting id="Dizimag-base_url" type="text" label="    Base Url" default="http://dizimag.co" visible="eq(-1,true)"/>
          <setting id="Dizimag-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
          <setting id="Dizimag_try" type="number" default="0" visible="false"/>
          <setting id="Dizimag_fail" type="number" default="0" visible="false"/>
          <setting id="Dizimag_check" type="number" default="0" visible="false"/>
-    </category>
-
-	<category label="Scrapers 2">
          <setting id="filmikz.ch-enable" type="bool" label="filmikz.ch Enabled" default="true" visible="true"/>
          <setting id="filmikz.ch-base_url" type="text" label="    Base Url" default="http://filmikz.ch" visible="eq(-1,true)"/>
          <setting id="filmikz.ch-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
@@ -309,15 +315,15 @@
          <setting id="MintMovies_try" type="number" default="0" visible="false"/>
          <setting id="MintMovies_fail" type="number" default="0" visible="false"/>
          <setting id="MintMovies_check" type="number" default="0" visible="false"/>
+    </category>
+
+	<category label="Scrapers 3">
          <setting id="movie25-enable" type="bool" label="movie25 Enabled" default="true" visible="true"/>
          <setting id="movie25-base_url" type="text" label="    Base Url" default="http://movie25.ag" visible="eq(-1,true)"/>
          <setting id="movie25-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
          <setting id="movie25_try" type="number" default="0" visible="false"/>
          <setting id="movie25_fail" type="number" default="0" visible="false"/>
          <setting id="movie25_check" type="number" default="0" visible="false"/>
-    </category>
-
-	<category label="Scrapers 3">
          <setting id="Movie4K-enable" type="bool" label="Movie4K Enabled" default="true" visible="true"/>
          <setting id="Movie4K-base_url" type="text" label="    Base Url" default="http://www.movie4k.to" visible="eq(-1,true)"/>
          <setting id="Movie4K-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
@@ -405,6 +411,21 @@
          <setting id="OneClickWatch_check" type="number" default="0" visible="false"/>
          <setting id="OneClickWatch-filter" type="slider" range="0,180" option="int" label="     Filter results older than (0=No Filter) (days)" default="30" visible="eq(-6,true)"/>
          <setting id="OneClickWatch-select" type="enum" label="     Automatically Select" lvalues="30636|30637" default="0" visible="eq(-7,true)"/>
+    </category>
+	
+    <category label="Scrapers 4">
+         <setting id="OnlineMoviesIs-enable" type="bool" label="OnlineMoviesIs Enabled" default="true" visible="true"/>
+         <setting id="OnlineMoviesIs-base_url" type="text" label="    Base Url" default="http://onlinemovies.is" visible="eq(-1,true)"/>
+         <setting id="OnlineMoviesIs-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
+         <setting id="OnlineMoviesIs_try" type="number" default="0" visible="false"/>
+         <setting id="OnlineMoviesIs_fail" type="number" default="0" visible="false"/>
+         <setting id="OnlineMoviesIs_check" type="number" default="0" visible="false"/>
+         <setting id="OnlineMoviesPro-enable" type="bool" label="OnlineMoviesPro Enabled" default="true" visible="true"/>
+         <setting id="OnlineMoviesPro-base_url" type="text" label="    Base Url" default="http://onlinemovies.pro" visible="eq(-1,true)"/>
+         <setting id="OnlineMoviesPro-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
+         <setting id="OnlineMoviesPro_try" type="number" default="0" visible="false"/>
+         <setting id="OnlineMoviesPro_fail" type="number" default="0" visible="false"/>
+         <setting id="OnlineMoviesPro_check" type="number" default="0" visible="false"/>
          <setting id="ororo.tv-enable" type="bool" label="ororo.tv Enabled" default="true" visible="true"/>
          <setting id="ororo.tv-base_url" type="text" label="    Base Url" default="http://ororo.tv" visible="eq(-1,true)"/>
          <setting id="ororo.tv-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
@@ -414,9 +435,6 @@
          <setting id="ororo.tv-username" type="text" label="     Username" default="" visible="eq(-6,true)"/>
          <setting id="ororo.tv-password" type="text" label="     Password" option="hidden" default="" visible="eq(-7,true)"/>
          <setting id="ororo.tv-include_premium" type="bool" label="     Include Premium" default="false" visible="eq(-8,true)"/>
-    </category>
-	
-    <category label="Scrapers 4">
          <setting id="pftv-enable" type="bool" label="pftv Enabled" default="true" visible="true"/>
          <setting id="pftv-base_url" type="text" label="    Base Url" default="http://projectfreetv.so" visible="eq(-1,true)"/>
          <setting id="pftv-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
@@ -487,6 +505,9 @@
          <setting id="TVRelease.Net_check" type="number" default="0" visible="false"/>
          <setting id="TVRelease.Net-filter" type="slider" range="0,180" option="int" label="     Filter results older than (0=No Filter) (days)" default="30" visible="eq(-6,true)"/>
          <setting id="TVRelease.Net-select" type="enum" label="     Automatically Select" lvalues="30636|30637" default="0" visible="eq(-7,true)"/>
+    </category>
+
+    <category label="Scrapers 5">
          <setting id="UFlix.org-enable" type="bool" label="UFlix.org Enabled" default="true" visible="true"/>
          <setting id="UFlix.org-base_url" type="text" label="    Base Url" default="http://uflix.me" visible="eq(-1,true)"/>
          <setting id="UFlix.org-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
@@ -511,9 +532,6 @@
          <setting id="viooz.ac_try" type="number" default="0" visible="false"/>
          <setting id="viooz.ac_fail" type="number" default="0" visible="false"/>
          <setting id="viooz.ac_check" type="number" default="0" visible="false"/>
-    </category>
-
-    <category label="Scrapers 5">
          <setting id="VKBox-enable" type="bool" label="VKBox Enabled" default="true" visible="true"/>
          <setting id="VKBox-base_url" type="text" label="    Base Url" default="http://mobapps.cc" visible="eq(-1,true)"/>
          <setting id="VKBox-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
