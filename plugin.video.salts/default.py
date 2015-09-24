@@ -160,12 +160,13 @@ def auto_conf():
         kodi.set_setting('sort3_field', '1')
         kodi.set_setting('sort4_field', '3')
         kodi.set_setting('sort5_field', '4')
-        sso = ['Local', 'DirectDownload.tv', 'VKBox', 'NoobRoom', 'OneClickTVShows', '123Movies', 'yify-streaming', 'stream-tv.co', 'streamallthis.is', 'Dizimag', 'Dizilab', 'MovieFarsi',
-               'GVCenter', 'MegaboxHD', 'Shush.se', 'Dizigold', 'clickplay.to', 'IceFilms', 'ororo.tv', 'afdah.org', 'xmovies8', 'OnlineMoviesIs', 'OnlineMoviesPro', 'Flixanity', 'hdmz', 'niter.tv',
-               'yify.tv', 'pubfilm', 'movietv.to', 'beinmovie', 'popcorntimefree', 'tunemovie', 'MintMovies', 'MovieNight', 'cmz', 'viooz.ac', 'view47', 'MoviesHD', 'OnlineMovies', 'MoviesOnline7',
-               'wmo.ch', 'zumvo.com', 'mvsnap', 'alluc.com', 'MyVideoLinks.eu', 'OneClickWatch', 'RLSSource.net', 'TVRelease.Net', 'FilmStreaming.in', 'PrimeWire', 'WatchFree.to',
-               'CouchTunerV2', 'CouchTunerV1', 'Watch8Now', 'pftv', 'wso.ch', 'WatchSeries', 'SolarMovie', 'UFlix.org', 'ch131', 'ayyex', 'moviestorm.eu', 'vidics.ch', 'Movie4K', 'LosMovies',
-               'MerDB', 'iWatchOnline', '2movies', 'iStreamHD', 'afdah', 'filmikz.ch', 'movie25']
+        sso = [
+            'Local', 'DirectDownload.tv', 'VKBox', 'NoobRoom', 'OneClickTVShows', '123Movies', 'yify-streaming', 'stream-tv.co', 'streamallthis.is', 'SezonLukDizi', 'Dizimag', 'Dizilab',
+            'MovieFarsi', 'GVCenter', 'MegaboxHD', 'Shush.se', 'Dizigold', 'IzlemeyeDeger', 'Rainierland', 'clickplay.to', 'IceFilms', 'ororo.tv', 'afdah.org', 'xmovies8', 'OnlineMoviesIs',
+            'OnlineMoviesPro', 'Flixanity', 'hdmz', 'niter.tv', 'yify.tv', 'pubfilm', 'movietv.to', 'beinmovie', 'popcorntimefree', 'tunemovie', 'MintMovies', 'MovieNight', 'cmz', 'viooz.ac',
+            'view47', 'MoviesHD', 'OnlineMovies', 'MoviesOnline7', 'wmo.ch', 'zumvo.com', 'mvsnap', 'Dizibox', 'alluc.com', 'MyVideoLinks.eu', 'OneClickWatch', 'RLSSource.net',
+            'TVRelease.Net', 'FilmStreaming.in', 'PrimeWire', 'WatchFree.to', 'CouchTunerV2', 'CouchTunerV1', 'Watch8Now', 'pftv', 'wso.ch', 'WatchSeries', 'SolarMovie', 'UFlix.org',
+            'ch131', 'MovieTube', 'ayyex', 'moviestorm.eu', 'vidics.ch', 'Movie4K', 'LosMovies', 'MerDB', 'iWatchOnline', '2movies', 'iStreamHD', 'afdah', 'filmikz.ch', 'movie25']
         kodi.set_setting('source_sort_order', '|'.join(sso))
         kodi.notify(msg=i18n('auto_conf_complete'))
     
@@ -247,11 +248,11 @@ def force_refresh(refresh_mode, section=None, slug=None, username=None):
         finally:
             utils.reap_workers(workers, None)
     elif refresh_mode == MODES.MY_CAL:
-        trakt_api.get_my_calendar(start_date, cached=False)
+        trakt_api.get_my_calendar(start_date, 8, cached=False)
     elif refresh_mode == MODES.CAL:
-        trakt_api.get_calendar(start_date, cached=False)
+        trakt_api.get_calendar(start_date, 8, cached=False)
     elif refresh_mode == MODES.PREMIERES:
-        trakt_api.get_premieres(start_date, cached=False)
+        trakt_api.get_premieres(start_date, 8, cached=False)
     elif refresh_mode == MODES.FRIENDS_EPISODE:
         trakt_api.get_friends_activity(section, True)
     elif refresh_mode == MODES.FRIENDS:
@@ -445,11 +446,11 @@ def browse_calendar(mode, start_date=None):
         start_date = now + datetime.timedelta(days=offset)
         start_date = datetime.datetime.strftime(start_date, '%Y-%m-%d')
     if mode == MODES.MY_CAL:
-        days = trakt_api.get_my_calendar(start_date)
+        days = trakt_api.get_my_calendar(start_date, 8)
     elif mode == MODES.CAL:
-        days = trakt_api.get_calendar(start_date)
+        days = trakt_api.get_calendar(start_date, 8)
     elif mode == MODES.PREMIERES:
-        days = trakt_api.get_premieres(start_date)
+        days = trakt_api.get_premieres(start_date, 8)
     make_dir_from_cal(mode, start_date, days)
 
 @url_dispatcher.register(MODES.MY_LISTS, ['section'])
@@ -487,7 +488,6 @@ def add_list_item(section, user_list, total_items=0):
 @url_dispatcher.register(MODES.LIKED_LISTS, ['section'])
 def browse_liked_lists(section):
     liked_lists = trakt_api.get_liked_lists()
-    print liked_lists
     total_items = len(liked_lists)
     for liked_list in liked_lists:
         list_item = (liked_list['list']['user']['username'], liked_list['list']['ids']['slug'])
@@ -581,7 +581,6 @@ def toggle_to_menu(action, section, slug, username=None):
                 break
 
     main_str = '|'.join(main_list)
-    print main_str
     kodi.set_setting(setting, main_str)
     xbmc.executebuiltin("XBMC.Container.Refresh")
 
@@ -1664,7 +1663,7 @@ def add_to_library(video_type, title, year, trakt_id):
 
                     filename = utils.filename_from_title(show['title'], video_type)
                     filename = filename % ('%02d' % int(season_num), '%02d' % int(ep_num))
-                    final_path = os.path.join(make_path(save_path, video_type, show['title'], season=season_num), filename)
+                    final_path = os.path.join(make_path(save_path, video_type, show['title'], show['year'], season=season_num), filename)
                     strm_string = kodi.get_plugin_url({'mode': MODES.GET_SOURCES, 'video_type': VIDEO_TYPES.EPISODE, 'title': show['title'], 'year': year, 'season': season_num,
                                                        'episode': ep_num, 'trakt_id': trakt_id, 'ep_title': episode['title'], 'ep_airdate': air_date, 'dialog': True})
                     write_strm(strm_string, final_path, VIDEO_TYPES.EPISODE, show['title'], show['year'], trakt_id, season_num, ep_num, require_source=require_source)
@@ -1682,7 +1681,8 @@ def add_to_library(video_type, title, year, trakt_id):
 
 def make_path(base_path, video_type, title, year='', season=''):
     path = base_path
-    show_folder = re.sub(r'([^\w\-_\. ]|\.$)', '_', title)
+    show_folder = re.sub(r'[^\w\-_\. ]', '_', title)
+    show_folder = '%s (%s)' % (show_folder, year)
     if video_type == VIDEO_TYPES.TVSHOW:
         path = os.path.join(base_path, show_folder, 'Season %s' % (season))
     else:

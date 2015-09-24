@@ -170,32 +170,24 @@ class Trakt_API():
         params = {'extended': 'full,images', 'limit': self.list_size}
         return self.__call_trakt(url, params=params)
 
-#     def get_friends_activity(self, section, include_episodes=False):
-#         if section == SECTIONS.TV:
-#             types='show'
-#             if include_episodes:
-#                 types += ',episode'
-#         elif section == SECTIONS.MOVIES:
-#             types='movie'
-#
-#         url='/activity/friends.json/%s/%s' % (API_KEY, types)
-#         return self.__call_trakt(url)
-#
-    def get_premieres(self, start_date=None, cached=True):
+    def get_premieres(self, start_date=None, days=None, cached=True):
         url = '/calendars/all/shows/premieres'
         if start_date: url += '/%s' % (start_date)
+        if days is not None: url += '/%s' % (days)
         params = {'extended': 'full,images', 'auth': False}
         return self.__call_trakt(url, params=params, auth=False, cache_limit=24, cached=cached)
 
-    def get_calendar(self, start_date=None, cached=True):
+    def get_calendar(self, start_date=None, days=None, cached=True):
         url = '/calendars/all/shows'
         if start_date: url += '/%s' % (start_date)
+        if days is not None: url += '/%s' % (days)
         params = {'extended': 'full,images', 'auth': False}
         return self.__call_trakt(url, params=params, auth=False, cache_limit=24, cached=cached)
 
-    def get_my_calendar(self, start_date=None, cached=True):
+    def get_my_calendar(self, start_date=None, days=None, cached=True):
         url = '/calendars/my/shows'
         if start_date: url += '/%s' % (start_date)
+        if days is not None: url += '/%s' % (days)
         params = {'extended': 'full,images', 'auth': True}
         return self.__call_trakt(url, params=params, auth=True, cache_limit=24, cached=cached)
 
@@ -291,11 +283,11 @@ class Trakt_API():
         response = self.get_bookmarks()
         for bookmark in response:
             if not season or not episode:
-                if bookmark['type'] == 'movie' and show_id == bookmark['movie']['ids']['trakt']:
+                if bookmark['type'] == 'movie' and int(show_id) == bookmark['movie']['ids']['trakt']:
                     return bookmark['progress']
             else:
-                # log_utils.log('Resume: %s, %s, %s, %s' % (bookmark, show_id, season, episode), xbmc.LOGDEBUG)
-                if bookmark['type'] == 'episode' and show_id == bookmark['show']['ids']['trakt'] and bookmark['episode']['season'] == int(season) and bookmark['episode']['number'] == int(episode):
+                #log_utils.log('Resume: %s, %s, %s, %s' % (bookmark, show_id, season, episode), log_utils.LOGDEBUG)
+                if bookmark['type'] == 'episode' and int(show_id) == bookmark['show']['ids']['trakt'] and bookmark['episode']['season'] == int(season) and bookmark['episode']['number'] == int(episode):
                     return bookmark['progress']
 
     def rate(self, section, item, rating, season='', episode=''):
