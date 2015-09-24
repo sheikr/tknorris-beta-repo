@@ -19,8 +19,9 @@ import scraper
 import re
 import urllib
 import urlparse
-from salts_lib import kodi
 import json
+from salts_lib import kodi
+from salts_lib import dom_parser
 from salts_lib.constants import VIDEO_TYPES
 from salts_lib.constants import QUALITIES
 
@@ -54,7 +55,7 @@ class MovieTV_Scraper(scraper.Scraper):
         hosters = []
         if source_url:
             url = urlparse.urljoin(self.base_url, source_url)
-            html = self._http_get(url, cache_limit=1)
+            html = self._http_get(url, allow_redirect=False, cache_limit=1)
             if video.video_type == VIDEO_TYPES.MOVIE:
                 pattern = '<source\s+src="([^"]+)'
                 match = re.search(pattern, html)
@@ -89,25 +90,23 @@ class MovieTV_Scraper(scraper.Scraper):
 
     def search(self, video_type, title, year):
         results = []
-        url = urlparse.urljoin(self.base_url, '/search/auto?q=')
+        url = urlparse.urljoin(self.base_url, '/search?q=')
         url += urllib.quote_plus(title)
-        html = self._http_get(url, headers={'X-Requested-With': 'XMLHttpRequest'}, cache_limit=.25)
+        html = self._http_get(url, allow_redirect=False, cache_limit=.25)
         if video_type == VIDEO_TYPES.MOVIE:
             url_frag = '/movies/'
         else:
             url_frag = '/series/'
 
-        if html:
-            try:
-                js_results = json.loads(html)
-                for item in js_results:
-                    if url_frag in item['link'] and (not year or not item['year'] or int(year) == int(item['year'])):
-                        result = {'url': item['link'], 'title': item['title'], 'year': item['year']}
-                        results.append(result)
-            except:
-                pass
+        for item in dom_parser.parse_dom(html, 'div', {'class': '[^"]*movie-grid[^"]*'}):
+            match = re.search('href="([^"]+).*?class="movie-grid-title">\s*([^<]+).*?movie-grid-year">(\d+)', item, re.DOTALL)
+            if match:
+                link, match_title, match_year = match.groups()
+                if url_frag in link and (not year or not match_year or int(year) == int(match_year)):
+                    result = {'url': link, 'title': match_title, 'year': match_year}
+                    results.append(result)
 
         return results
 
-    def _http_get(self, url, data=None, headers=None, cache_limit=8):
-        return super(MovieTV_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, headers=headers, cache_limit=cache_limit)
+    def _http_get(self, url, data=None, headers=None, allow_redirect=True, cache_limit=8):
+        return super(MovieTV_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, headers=headers, allow_redirect=allow_redirect, cache_limit=cache_limit)
