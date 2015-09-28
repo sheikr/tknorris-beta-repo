@@ -19,7 +19,6 @@ import scraper
 import re
 import urlparse
 from salts_lib import kodi
-import xbmc
 from salts_lib import log_utils
 from salts_lib.trans_utils import i18n
 from salts_lib.constants import VIDEO_TYPES
@@ -27,6 +26,7 @@ from salts_lib.constants import QUALITIES
 from salts_lib.constants import USER_AGENT
 
 BASE_URL = 'http://ororo.tv'
+LANDING_URL = 'http://ororo.tv/en/nl'
 CATEGORIES = {VIDEO_TYPES.TVSHOW: '2,3', VIDEO_TYPES.MOVIE: '1,3,4'}
 
 class OroroTV_Scraper(scraper.Scraper):
@@ -50,7 +50,7 @@ class OroroTV_Scraper(scraper.Scraper):
         return link
 
     def format_source_label(self, item):
-        label = '[%s] %s (%s) (%s/100) ' % (item['quality'], item['host'], item['format'], item['rating'])
+        label = '[%s] %s (%s)' % (item['quality'], item['host'], item['format'])
         return label
 
     def get_sources(self, video):
@@ -118,8 +118,8 @@ class OroroTV_Scraper(scraper.Scraper):
             return ''
 
         html = super(OroroTV_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, cache_limit=cache_limit)
-        if not re.search('href="/en/users/sign_out"', html):
-            log_utils.log('Logging in for url (%s)' % (url), xbmc.LOGDEBUG)
+        if not html or 'csrf-token' in html:
+            log_utils.log('Logging in for url (%s)' % (url), log_utils.LOGDEBUG)
             self.__login()
             html = super(OroroTV_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, cache_limit=0)
 
@@ -128,6 +128,7 @@ class OroroTV_Scraper(scraper.Scraper):
     def __login(self):
         url = urlparse.urljoin(self.base_url, '/en/users/sign_in')
         data = {'user[email]': self.username, 'user[password]': self.password, 'user[remember_me]': 1}
-        html = super(OroroTV_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, allow_redirect=False, cache_limit=0)
+        cookies = {'nl': 'true', 'locale': 'en'}
+        html = super(OroroTV_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, cookies=cookies, data=data, allow_redirect=False, cache_limit=0)
         if html != 'http://ororo.tv/en':
             raise Exception('ororo.tv login failed: %s' % (html))

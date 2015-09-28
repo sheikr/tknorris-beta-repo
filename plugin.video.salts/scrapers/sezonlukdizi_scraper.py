@@ -21,10 +21,10 @@ import re
 import urlparse
 import json
 import urllib
+import urllib2
 import time
 import random
 from salts_lib import log_utils
-from salts_lib import dom_parser
 from salts_lib.constants import VIDEO_TYPES
 from salts_lib.constants import USER_AGENT
 from salts_lib import kodi
@@ -112,14 +112,20 @@ class SezonLukDizi_Scraper(scraper.Scraper):
             for match in re.finditer('"?file"?\s*:\s*"([^"]+)"\s*,\s*"?label"?\s*:\s*"(\d+)p?"', html):
                 stream_url, height = match.groups()
                 stream_url = stream_url.replace('\\&', '&').replace('\\/', '/')
+                if self._get_direct_hostname(stream_url) == 'gvideo':
+                    quality = self._gv_get_quality(stream_url)
+                else:
+                    stream_redirect = self._http_get(stream_url, allow_redirect=False, cache_limit=0)
+                    if self._get_direct_hostname(stream_redirect) == 'gvideo':
+                        stream_url = stream_redirect
+                        quality = self._gv_get_quality(stream_url)
+                    else:
+                        quality = self._height_get_quality(height)
+                        
                 if stream_url in seen_urls: continue
                 seen_urls[stream_url] = True
                 host = self._get_direct_hostname(stream_url)
-                if host == 'gvideo':
-                    quality = self._gv_get_quality(stream_url)
-                else:
-                    quality = self._height_get_quality(height)
-                    stream_url += '|User-Agent=%s&Referer=%s' % (USER_AGENT, urllib.quote(url))
+                stream_url += '|User-Agent=%s&Referer=%s' % (USER_AGENT, urllib.quote(url))
                 hoster = {'multi-part': False, 'host': host, 'class': self, 'quality': quality, 'views': None, 'rating': None, 'url': stream_url, 'direct': True}
                 sources.append(hoster)
         return sources
@@ -128,7 +134,7 @@ class SezonLukDizi_Scraper(scraper.Scraper):
         return super(SezonLukDizi_Scraper, self)._default_get_url(video)
 
     def _get_episode_url(self, show_url, video):
-        episode_pattern = 'href="([^"]+-%s-sezon-%s-bolum[^"]+)' % (video.season, video.episode)
+        episode_pattern = 'href="([^"]+(?:-|/)%s-sezon-%s-[^"]*bolum[^"]*)' % (video.season, video.episode)
         title_pattern = 'class="episode-name"\s+href="([^"]+)"\s+title="([^"]+)'
         return super(SezonLukDizi_Scraper, self)._default_get_episode_url(show_url, video, episode_pattern, title_pattern)
 
@@ -142,11 +148,12 @@ class SezonLukDizi_Scraper(scraper.Scraper):
         except ValueError:
             log_utils.log('Invalid JSON returned: %s: %s' % (search_url, html), log_utils.LOGWARNING)
         else:
-            for item in js_result:
+            if js_result:
+                for item in js_result:
                     result = {'url': item['url'].replace('\/', '/').replace(self.base_url, ''), 'title': item['name'], 'year': ''}
                     results.append(result)
 
         return results
 
-    def _http_get(self, url, data=None, headers=None, cache_limit=8):
-        return super(SezonLukDizi_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, headers=headers, cache_limit=cache_limit)
+    def _http_get(self, url, data=None, headers=None, allow_redirect=True, cache_limit=8):
+        return super(SezonLukDizi_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, headers=headers, allow_redirect=allow_redirect, cache_limit=cache_limit)

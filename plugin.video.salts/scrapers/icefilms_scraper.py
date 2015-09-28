@@ -24,7 +24,6 @@ import string
 from salts_lib import kodi
 import random
 import xbmcgui
-import xbmc
 from salts_lib import log_utils
 from salts_lib.constants import VIDEO_TYPES
 from salts_lib.constants import QUALITIES
@@ -56,8 +55,7 @@ class IceFilms_Scraper(scraper.Scraper):
         url += '?s=%s&t=%s&app_id=SALTS' % (data['id'][0], data['t'][0])
         list_url = LIST_URL % (data['t'][0])
         headers = {
-                   'Referer': list_url
-        }
+            'Referer': list_url}
         ad_url = urllib.unquote(data['ad_url'][0])
         del data['ad_url']
         html = self._http_get(url, data=data, headers=headers, cache_limit=0)
@@ -173,7 +171,7 @@ class IceFilms_Scraper(scraper.Scraper):
         try:
             wdlg = xbmcgui.WindowDialog()
             if not ad_url.startswith('http:'): ad_url = 'http:' + ad_url
-            log_utils.log('Getting ad page: %s' % (ad_url), xbmc.LOGDEBUG)
+            log_utils.log('Getting ad page: %s' % (ad_url), log_utils.LOGDEBUG)
             headers = {'Referer': ice_referer}
             html = self._http_get(ad_url, headers=headers, cache_limit=0)
             headers = {'Referer': ad_url}
@@ -182,7 +180,7 @@ class IceFilms_Scraper(scraper.Scraper):
                 img_url = img_url.replace('&amp;', '&')
                 width = int(width)
                 height = int(height)
-                log_utils.log('Image in page: |%s| - (%dx%d)' % (img_url, width, height), xbmc.LOGDEBUG)
+                log_utils.log('Image in page: |%s| - (%dx%d)' % (img_url, width, height), log_utils.LOGDEBUG)
                 if width > 0 and height > 0:
                     left = (1280 - width) / 2
                     img = xbmcgui.ControlImage(left, 0, width, height, img_url)
@@ -195,7 +193,7 @@ class IceFilms_Scraper(scraper.Scraper):
             dialog.ok('Stream All The Sources', 'Continue to Video')
             match = re.search("href='([^']+)", html)
             if match and random.randint(0, 100) < 5:
-                log_utils.log('Link Clicked: %s' % (match.group(1)), xbmc.LOGDEBUG)
+                log_utils.log('Link Clicked: %s' % (match.group(1)), log_utils.LOGDEBUG)
                 html = self._http_get(match.group(1), cache_limit=0)
                 match = re.search("location=decode\('([^']+)", html)
                 if match:

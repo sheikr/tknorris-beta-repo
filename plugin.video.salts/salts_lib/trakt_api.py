@@ -255,7 +255,6 @@ class Trakt_API():
         if full: params['extended'] = 'full,images'
         if hidden: params['hidden'] = 'true'
         if specials: params['specials'] = 'true'
-            
         return self.__call_trakt(url, params=params, cached=cached)
 
     def get_hidden_progress(self, cached=True):
@@ -275,9 +274,14 @@ class Trakt_API():
         url = '/users/%s' % (username)
         return self.__call_trakt(url, cached=cached)
         
-    def get_bookmarks(self):
+    def get_bookmarks(self, section=None, full=False):
         url = '/sync/playback'
-        return self.__call_trakt(url, cached=False)
+        if section == SECTIONS.MOVIES:
+            url += '/movies'
+        elif section == SECTIONS.TV:
+            url += '/episodes'
+        params = {'extended': 'full,images'} if full else None
+        return self.__call_trakt(url, params=params, cached=False)
 
     def get_bookmark(self, show_id, season, episode):
         response = self.get_bookmarks()
@@ -286,7 +290,7 @@ class Trakt_API():
                 if bookmark['type'] == 'movie' and int(show_id) == bookmark['movie']['ids']['trakt']:
                     return bookmark['progress']
             else:
-                #log_utils.log('Resume: %s, %s, %s, %s' % (bookmark, show_id, season, episode), log_utils.LOGDEBUG)
+                # log_utils.log('Resume: %s, %s, %s, %s' % (bookmark, show_id, season, episode), log_utils.LOGDEBUG)
                 if bookmark['type'] == 'episode' and int(show_id) == bookmark['show']['ids']['trakt'] and bookmark['episode']['season'] == int(season) and bookmark['episode']['number'] == int(episode):
                     return bookmark['progress']
 

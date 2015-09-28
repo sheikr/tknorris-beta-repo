@@ -866,6 +866,14 @@ msgctxt "#30212"
 msgid "Scraper Decryption Key"
 msgstr ""
 
+msgctxt "#30213"
+msgid "Trakt On Deck"
+msgstr ""
+
+msgctxt "#30214"
+msgid "on"
+msgstr ""
+
 msgctxt "#30500"
 msgid "Addon Theme"
 msgstr ""
@@ -1465,4 +1473,12 @@ msgstr ""
 
 msgctxt "#30645"
 msgid "Skip movies/episodes that exist locally"
+msgstr ""
+
+msgctxt "#30646"
+msgid "Include Watchlist in My Next Episodes"
+msgstr ""
+
+msgctxt "#30647"
+msgid "Show Trakt On Deck"
 msgstr ""

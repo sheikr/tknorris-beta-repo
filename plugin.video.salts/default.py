@@ -83,6 +83,31 @@ def settings_menu():
     kodi.create_item({'mode': MODES.BROWSE_URLS}, i18n('remove_cached_urls'), thumb=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
     kodi.end_of_directory()
 
+@url_dispatcher.register(MODES.SHOW_BOOKMARKS, ['section'])
+def view_bookmarks(section):
+    bookmarks = trakt_api.get_bookmarks(section, full=True)
+    section_params = utils.get_section_params(section)
+    for bookmark in bookmarks:
+        if bookmark['type'] == 'movie':
+            liz, liz_url = make_item(section_params, bookmark['movie'])
+        else:
+            liz, liz_url = make_episode_item(bookmark['show'], bookmark['episode'])
+            label = liz.getLabel()
+            label = '%s - %s' % (bookmark['show']['title'], label.decode('utf-8', 'replace'))
+            liz.setLabel(label)
+            
+        label = liz.getLabel()
+        pause_label = ''
+        if kodi.get_setting('trakt_bookmark') == 'true':
+            pause_label = '[COLOR blue]%.2f%%[/COLOR] %s ' % (bookmark['progress'], i18n('on'))
+        paused_at = time.strftime('%Y-%m-%d', time.localtime(utils.iso_2_utc(bookmark['paused_at'])))
+        pause_label += '[COLOR deeppink]%s[/COLOR]' % (paused_at)
+        label = '[%s] %s ' % (pause_label, label.decode('utf-8', 'replace'))
+        liz.setLabel(label)
+        xbmcplugin.addDirectoryItem(int(sys.argv[1]), liz_url, liz, isFolder=section_params['folder'], totalItems=0)
+
+    kodi.end_of_directory()
+
 @url_dispatcher.register(MODES.SHOW_VIEWS)
 def show_views():
     for content_type in ['movies', 'tvshows', 'seasons', 'episodes']:
@@ -181,6 +206,7 @@ def browse_menu(section):
     if utils.menu_on('mosts'): kodi.create_item({'mode': MODES.MOSTS, 'section': section}, i18n('mosts') % (section_label2), thumb=utils.art('mosts.png'), fanart=utils.art('fanart.jpg'))
     add_section_lists(section)
     if TOKEN:
+        if utils.menu_on('on_deck'): kodi.create_item({'mode': MODES.SHOW_BOOKMARKS, 'section': section}, i18n('trakt_on_deck'), thumb=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
         if utils.menu_on('recommended'): kodi.create_item({'mode': MODES.RECOMMEND, 'section': section}, i18n('recommended') % (section_label), thumb=utils.art('recommended.png'), fanart=utils.art('fanart.jpg'))
         if utils.menu_on('collection'): add_refresh_item({'mode': MODES.SHOW_COLLECTION, 'section': section}, i18n('my_collection') % (section_label2), utils.art('collection.png'), utils.art('fanart.jpg'))
         if utils.menu_on('favorites'): kodi.create_item({'mode': MODES.SHOW_FAVORITES, 'section': section}, i18n('my_favorites'), thumb=utils.art('my_favorites.png'), fanart=utils.art('fanart.jpg'))
@@ -668,23 +694,28 @@ def show_collection(section):
 def get_progress(cache_override=False):
     cached = kodi.get_setting('cache_watched') == 'true' and not cache_override
     timeout = max_timeout = int(kodi.get_setting('trakt_timeout'))
-    watched_list = trakt_api.get_watched(SECTIONS.TV, full=True, cached=cached)
+    progress_list = trakt_api.get_watched(SECTIONS.TV, full=True, cached=cached)
+    if kodi.get_setting('include_watchlist_next') == 'true':
+        watchlist = trakt_api.show_watchlist(SECTIONS.TV)
+        watchlist = [{'show': item, 'last_watched_at': None} for item in watchlist]
+        progress_list += watchlist
+
     hidden = dict.fromkeys([item['show']['ids']['trakt'] for item in trakt_api.get_hidden_progress(cached=cached)])
     worker_count = 0
     workers = []
     shows = {}
     q = Queue()
     begin = time.time()
-    for watched in watched_list:
-        if watched['show']['ids']['trakt'] in hidden:
+    for show in progress_list:
+        if show['show']['ids']['trakt'] in hidden:
             continue
         
-        worker = utils.start_worker(q, utils.parallel_get_progress, [watched['show']['ids']['trakt'], cached])
+        worker = utils.start_worker(q, utils.parallel_get_progress, [show['show']['ids']['trakt'], cached])
         worker_count += 1
         workers.append(worker)
         # create a shows dictionary to be used during progress building
-        shows[watched['show']['ids']['trakt']] = watched['show']
-        shows[watched['show']['ids']['trakt']]['last_watched_at'] = watched['last_watched_at']
+        shows[show['show']['ids']['trakt']] = show['show']
+        shows[show['show']['ids']['trakt']]['last_watched_at'] = show['last_watched_at']
 
     episodes = []
     while worker_count > 0:
