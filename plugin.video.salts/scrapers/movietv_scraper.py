@@ -90,9 +90,10 @@ class MovieTV_Scraper(scraper.Scraper):
 
     def search(self, video_type, title, year):
         results = []
-        url = urlparse.urljoin(self.base_url, '/search?q=')
+        url = urlparse.urljoin(self.base_url, '/search?qe=')
         url += urllib.quote_plus(title)
-        html = self._http_get(url, cache_limit=.25)
+        headers = {'Referer': self.base_url + '/'}
+        html = self._http_get(url, headers=headers, cache_limit=0)
         if video_type == VIDEO_TYPES.MOVIE:
             url_frag = '/movies/'
         else:
