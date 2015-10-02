@@ -16,7 +16,7 @@ __all__ = ['scraper', 'local_scraper', 'pw_scraper', 'uflix_scraper', 'watchseri
            'mintmovies_scraper', 'shush_proxy', 'mvsnap_scraper', 'pubfilm_scraper', 'pctf_scraper', 'rlssource_scraper', 'couchtunerv1_scraper', 'couchtunerv2_scraper',
            'tunemovie_scraper', 'watch8now_scraper', 'megabox_proxy', 'dizilab_scraper', 'beinmovie_scraper', 'dizimag_scraper', 'ayyex_scraper', 'moviefarsi_scraper',
            'oneclicktvshows_scraper', 'dizigold_scraper', 'gvcenter_proxy', 'onlinemoviespro_scraper', 'onlinemoviesis_scraper', '123movies_scraper', 'rainierland_scraper',
-           'dizibox_scraper', 'sezonlukdizi_scraper', 'izlemeyedeger_scraper', 'movietube_scraper', 'funtastic_scraper']
+           'dizibox_scraper', 'sezonlukdizi_scraper', 'izlemeyedeger_scraper', 'movietube_scraper', 'funtastic_scraper', 'putlocker_scraper', 'yshows_scraper']
 
 from . import *
 
@@ -25,7 +25,7 @@ class ScraperVideo:
         assert(video_type in (VIDEO_TYPES.__dict__[k] for k in VIDEO_TYPES.__dict__ if not k.startswith('__')))
         self.video_type = video_type
         self.title = title
-        self.year = year
+        self.year = str(year)
         self.season = season
         self.episode = episode
         self.ep_title = ep_title
