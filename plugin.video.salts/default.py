@@ -24,7 +24,6 @@ import xbmcplugin
 import xbmcgui
 import xbmc
 import xbmcvfs
-import urlresolver
 import json
 import xml.etree.ElementTree as ET
 from Queue import Queue, Empty
@@ -154,6 +153,7 @@ def delete_url(url):
 
 @url_dispatcher.register(MODES.RES_SETTINGS)
 def resolver_settings():
+    import urlresolver
     urlresolver.display_settings()
 
 @url_dispatcher.register(MODES.ADDON_SETTINGS)
@@ -1068,6 +1068,7 @@ def filter_unusable_hosters(hosters):
     filtered_hosters = []
     filter_max = int(kodi.get_setting('filter_unusable'))
     unk_hosts = {}
+    import urlresolver
     for i, hoster in enumerate(hosters):
         if i < filter_max and 'direct' in hoster and hoster['direct'] == False and hoster['host']:
             hmf = urlresolver.HostedMediaFile(host=hoster['host'], media_id='dummy')  # use dummy media_id to force host validation
@@ -1126,6 +1127,7 @@ def play_source(mode, hoster_url, direct, video_type, trakt_id, season='', episo
         log_utils.log('Treating hoster_url as direct: %s' % (hoster_url))
         stream_url = hoster_url
     else:
+        import urlresolver
         hmf = urlresolver.HostedMediaFile(url=hoster_url)
         if not hmf:
             log_utils.log('Indirect hoster_url not supported by urlresolver: %s' % (hoster_url))
@@ -1720,14 +1722,11 @@ def add_to_library(video_type, title, year, trakt_id):
         write_strm(strm_string, final_path, VIDEO_TYPES.MOVIE, title, year, trakt_id, require_source=kodi.get_setting('require_source') == 'true')
 
 def make_path(base_path, video_type, title, year='', season=''):
-    path = base_path
     show_folder = re.sub(r'[^\w\-_\. ]', '_', title)
-    show_folder = '%s (%s)' % (show_folder, year)
+    show_folder = '%s (%s)' % (show_folder, year) if year else show_folder
+    path = os.path.join(base_path, show_folder)
     if video_type == VIDEO_TYPES.TVSHOW:
-        path = os.path.join(base_path, show_folder, 'Season %s' % (season))
-    else:
-        dir_name = show_folder if not year else '%s (%s)' % (show_folder, year)
-        path = os.path.join(base_path, dir_name)
+        path = os.path.join(path, 'Season %s' % (season))
     return path
 
 def write_strm(stream, path, video_type, title, year, trakt_id, season='', episode='', require_source=False):
