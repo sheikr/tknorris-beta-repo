@@ -51,13 +51,15 @@ class XMovies8_Scraper(scraper.Scraper):
         source_url = self.get_url(video)
         hosters = []
         if source_url:
-            url = urlparse.urljoin(self.base_url, source_url)
-            html = self._http_get(url, cache_limit=.5)
+            page_url = urlparse.urljoin(self.base_url, source_url)
+            html = self._http_get(page_url, cache_limit=.5)
             match = re.search('video_id\s*=\s*"([^"]+)', html)
             if match:
                 data = {'v': match.group(1)}
                 url = urlparse.urljoin(self.base_url, VIDEO_URL)
-                html = self._http_get(url, data=data, headers=XHR, cache_limit=0)
+                headers = XHR
+                headers['Referer'] = page_url
+                html = self._http_get(url, data=data, headers=headers, cache_limit=0)
                 for match in re.finditer('<source\s+data-res="([^"]+)"\s+src="([^"]+)', html):
                     stream_url = urlparse.urljoin(self.base_url, match.group(2)) + '|User-Agent=%s' % (USER_AGENT)
                     quality = self._height_get_quality(match.group(1))
@@ -71,7 +73,7 @@ class XMovies8_Scraper(scraper.Scraper):
 
     def search(self, video_type, title, year):
         search_url = urlparse.urljoin(self.base_url, '/results?q=%s' % urllib.quote_plus(title))
-        html = self._http_get(search_url, allow_redirect=False, cache_limit=.25)
+        html = self._http_get(search_url, cache_limit=.25)
         results = []
         for result in dom_parser.parse_dom(html, 'div', {'class': 'cell'}):
             match = re.search('class="video_title".*?href="([^"]+)"[^>]*>\s*([^<]+)', result, re.DOTALL)
@@ -105,7 +107,7 @@ class XMovies8_Scraper(scraper.Scraper):
 # if no default url has been set, then pick one and set it. If one has been set, use it
 default_url = kodi.get_setting('%s-default_url' % (XMovies8_Scraper.get_name()))
 if not default_url:
-    BASE_URL = random.choice(['http://xmovies8.org', 'http://genvideos.com'])
+    BASE_URL = random.choice(['https://xmovies8.org', 'http://genvideos.com'])
     XMovies8_Scraper.base_url = BASE_URL
     kodi.set_setting('%s-default_url' % (XMovies8_Scraper.get_name()), BASE_URL)
 else:

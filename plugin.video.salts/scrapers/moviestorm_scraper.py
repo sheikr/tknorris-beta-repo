@@ -18,8 +18,9 @@
 import scraper
 import re
 import urlparse
-from salts_lib import kodi
 import urllib
+import time
+from salts_lib import kodi
 from salts_lib.constants import VIDEO_TYPES
 from salts_lib.constants import QUALITIES
 from salts_lib import dom_parser
@@ -89,11 +90,18 @@ class MovieStorm_Scraper(scraper.Scraper):
             titles = dom_parser.parse_dom(html, 'a', {'class': 'underilne'})
             items = zip(links, titles)
         else:
-            url = urlparse.urljoin(self.base_url, '/search?q=%s&go=Search' % urllib.quote_plus(title))
+            url = urlparse.urljoin(self.base_url, '/search?=%s' % urllib.quote_plus(title))
             data = {'q': title, 'go': 'Search'}
             html = self._http_get(url, data=data, cache_limit=8)
+            match = re.search('you can search again in (\d+) seconds', html, re.I)
+            if match:
+                wait = int(match.group(1))
+                if wait > self.timeout: wait = self.timeout
+                time.sleep(wait)
+                html = self._http_get(url, data=data, cache_limit=0)
+                
             pattern = 'class="movie_box.*?href="([^"]+).*?<h1>([^<]+)'
-            items = re.findall(pattern, html)
+            items = re.findall(pattern, html, re.DOTALL)
 
         norm_title = self._normalize_title(title)
         for item in items:
