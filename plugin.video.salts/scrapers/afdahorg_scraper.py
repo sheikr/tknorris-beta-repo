@@ -21,6 +21,7 @@ import urlparse
 import re
 from salts_lib import kodi
 from salts_lib.constants import VIDEO_TYPES
+from salts_lib.constants import FORCE_NO_MATCH
 
 BASE_URL = 'https://afdah.org'
 INFO_URL = BASE_URL + '/video_info'
@@ -49,14 +50,14 @@ class AfdahOrg_Scraper(scraper.Scraper):
     def get_sources(self, video):
         source_url = self.get_url(video)
         hosters = []
-        if source_url:
+        if source_url and source_url != FORCE_NO_MATCH:
             url = urlparse.urljoin(self.base_url, source_url)
             html = self._http_get(url, cache_limit=.5)
             match = re.search('var\s*video_id="([^"]+)', html)
             if match:
                 video_id = match.group(1)
                 data = {'video_id': video_id}
-                html = self._http_get(INFO_URL, data=data, cache_limit=0)
+                html = self._http_get(INFO_URL, data=data, cache_limit=.5)
                 sources = self.__parse_fmt(html)
                 for width in sources:
                     hoster = {'multi-part': False, 'host': self._get_direct_hostname(sources[width]), 'class': self, 'quality': self._width_get_quality(width), 'views': None, 'rating': None, 'url': sources[width], 'direct': True}

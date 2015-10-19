@@ -26,9 +26,10 @@ import random
 import xbmcgui
 from salts_lib import log_utils
 from salts_lib.constants import VIDEO_TYPES
+from salts_lib.constants import FORCE_NO_MATCH
 from salts_lib.constants import QUALITIES
 
-QUALITY_MAP = {'HD 720P': QUALITIES.HD720, 'DVDRIP / STANDARD DEF': QUALITIES.HIGH, 'DVD SCREENER': QUALITIES.HIGH}
+QUALITY_MAP = {'HD 720P': QUALITIES.HD720, 'HD 720P+': QUALITIES.HD720, 'DVDRIP / STANDARD DEF': QUALITIES.HIGH, 'DVD SCREENER': QUALITIES.HIGH}
 BASE_URL = 'http://www.icefilms.info'
 LIST_URL = BASE_URL + '/membersonly/components/com_iceplayer/video.php?h=374&w=631&vid=%s&img='
 AJAX_URL = '/membersonly/components/com_iceplayer/video.phpAjaxResp.php?id=%s&s=%s&iqs=&url=&m=%s&cap= &sec=%s&t=%s&ad_url=%s'
@@ -58,7 +59,7 @@ class IceFilms_Scraper(scraper.Scraper):
             'Referer': list_url}
         ad_url = urllib.unquote(data['ad_url'][0])
         del data['ad_url']
-        html = self._http_get(url, data=data, headers=headers, cache_limit=0)
+        html = self._http_get(url, data=data, headers=headers, cache_limit=.25)
         match = re.search('url=(.*)', html)
         if match:
             self.__show_ice_ad(ad_url, list_url)
@@ -72,7 +73,7 @@ class IceFilms_Scraper(scraper.Scraper):
     def get_sources(self, video):
         source_url = self.get_url(video)
         sources = []
-        if source_url:
+        if source_url and source_url != FORCE_NO_MATCH:
             try:
                 url = urlparse.urljoin(self.base_url, source_url)
                 html = self._http_get(url, cache_limit=.5)

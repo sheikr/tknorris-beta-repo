@@ -38,6 +38,7 @@ from salts_lib import cloudflare
 from salts_lib import pyaes
 from salts_lib.db_utils import DB_Connection
 from salts_lib.constants import VIDEO_TYPES
+from salts_lib.constants import FORCE_NO_MATCH
 from salts_lib.constants import USER_AGENT
 from salts_lib.constants import QUALITIES
 from salts_lib.constants import HOST_Q
@@ -219,16 +220,19 @@ class Scraper(object):
                 url = results[0]['url']
                 self.db_connection.set_related_url(temp_video_type, video.title, video.year, self.get_name(), url)
 
-        if url and video.video_type == VIDEO_TYPES.EPISODE:
-            result = self.db_connection.get_related_url(VIDEO_TYPES.EPISODE, video.title, video.year, self.get_name(), video.season, video.episode)
-            if result:
-                url = result[0][0]
-                log_utils.log('Got local related url: |%s|%s|%s|' % (video, self.get_name(), url))
-            else:
-                show_url = url
-                url = self._get_episode_url(show_url, video)
-                if url:
-                    self.db_connection.set_related_url(VIDEO_TYPES.EPISODE, video.title, video.year, self.get_name(), url, video.season, video.episode)
+        if video.video_type == VIDEO_TYPES.EPISODE:
+            if url == FORCE_NO_MATCH:
+                url = None
+            elif url:
+                result = self.db_connection.get_related_url(VIDEO_TYPES.EPISODE, video.title, video.year, self.get_name(), video.season, video.episode)
+                if result:
+                    url = result[0][0]
+                    log_utils.log('Got local related url: |%s|%s|%s|' % (video, self.get_name(), url))
+                else:
+                    show_url = url
+                    url = self._get_episode_url(show_url, video)
+                    if url:
+                        self.db_connection.set_related_url(VIDEO_TYPES.EPISODE, video.title, video.year, self.get_name(), url, video.season, video.episode)
 
         return url
 
@@ -238,24 +242,24 @@ class Scraper(object):
         if headers is None: headers = {}
         referer = headers['Referer'] if 'Referer' in headers else url
         log_utils.log('Getting Url: %s cookie=|%s| data=|%s| extra headers=|%s|' % (url, cookies, data, headers))
+        if data is not None:
+            if isinstance(data, basestring):
+                data = data
+            else:
+                data = urllib.urlencode(data, True)
+
+        if multipart_data is not None:
+            headers['Content-Type'] = 'multipart/form-data; boundary=X-X-X'
+            data = multipart_data
+
         self.create_db_connection()
-        _, html = self.db_connection.get_cached_url(url, cache_limit)
+        _, html = self.db_connection.get_cached_url(url, data, cache_limit)
         if html:
             log_utils.log('Returning cached result for: %s' % (url), log_utils.LOGDEBUG)
             return html
 
         try:
             self.cj = self._set_cookies(base_url, cookies)
-            if data is not None:
-                if isinstance(data, basestring):
-                    data = data
-                else:
-                    data = urllib.urlencode(data, True)
-
-            if multipart_data is not None:
-                headers['Content-Type'] = 'multipart/form-data; boundary=X-X-X'
-                data = multipart_data
-
             request = urllib2.Request(url, data=data)
             request.add_header('User-Agent', USER_AGENT)
             request.add_unredirected_header('Host', request.get_host())
@@ -300,7 +304,7 @@ class Scraper(object):
             log_utils.log('Error (%s) during scraper http get: %s' % (str(e), url), log_utils.LOGWARNING)
             return ''
 
-        self.db_connection.cache_url(url, html)
+        self.db_connection.cache_url(url, html, data)
         return html
 
     def _set_cookies(self, base_url, cookies):

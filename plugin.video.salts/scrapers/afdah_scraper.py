@@ -21,7 +21,9 @@ import re
 import string
 from salts_lib import kodi
 from salts_lib.constants import VIDEO_TYPES
+from salts_lib.constants import FORCE_NO_MATCH
 from salts_lib.constants import QUALITIES
+
 BASE_URL = 'http://afdah.tv'
 
 class Afdah_Scraper(scraper.Scraper):
@@ -48,7 +50,7 @@ class Afdah_Scraper(scraper.Scraper):
     def get_sources(self, video):
         source_url = self.get_url(video)
         hosters = []
-        if source_url:
+        if source_url and source_url != FORCE_NO_MATCH:
             url = urlparse.urljoin(self.base_url, source_url)
             html = self._http_get(url, cache_limit=.5)
 
@@ -99,7 +101,7 @@ class Afdah_Scraper(scraper.Scraper):
     def search(self, video_type, title, year):
         search_url = urlparse.urljoin(self.base_url, '/wp-content/themes/afdah/ajax-search.php')
         data = {'search': title, 'type': 'title'}
-        html = self._http_get(search_url, data=data, cache_limit=0)
+        html = self._http_get(search_url, data=data, cache_limit=1)
         pattern = '<li>.*?href="([^"]+)">([^<]+)\s+\((\d{4})\)'
         results = []
         for match in re.finditer(pattern, html, re.DOTALL | re.I):

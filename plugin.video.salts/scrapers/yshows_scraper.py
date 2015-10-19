@@ -21,6 +21,7 @@ import urlparse
 from salts_lib import dom_parser
 from salts_lib import log_utils
 from salts_lib.constants import VIDEO_TYPES
+from salts_lib.constants import FORCE_NO_MATCH
 from salts_lib.constants import QUALITIES
 from salts_lib.constants import XHR
 from salts_lib import kodi
@@ -46,7 +47,7 @@ class YShows_Scraper(scraper.Scraper):
     def resolve_link(self, link):
         link_url = urlparse.urljoin(self.base_url, LINK_URL)
         data = {'id_link': link}
-        html = self._http_get(link_url, data=data, headers=XHR, cache_limit=0)
+        html = self._http_get(link_url, data=data, headers=XHR, cache_limit=.25)
         match = re.search('<iframe[^>]+src="([^"]+)', html, re.I)
         if match:
             return match.group(1)
@@ -58,7 +59,7 @@ class YShows_Scraper(scraper.Scraper):
     def get_sources(self, video):
         source_url = self.get_url(video)
         hosters = []
-        if source_url:
+        if source_url and source_url != FORCE_NO_MATCH:
             page_url = urlparse.urljoin(self.base_url, source_url)
             html = self._http_get(page_url, cache_limit=.25)
             data_ids = dom_parser.parse_dom(html, 'a', {'class': '[^"]*list-group-item[^"]*'}, 'data-id')
@@ -85,7 +86,7 @@ class YShows_Scraper(scraper.Scraper):
     def search(self, video_type, title, year):
         search_url = urlparse.urljoin(self.base_url, '/search_ajax')
         data = {'query': title}
-        html = self._http_get(search_url, data=data, headers=XHR, cache_limit=0)
+        html = self._http_get(search_url, data=data, headers=XHR, cache_limit=1)
         results = []
         for match in re.finditer('class="list-group-item"\s+href="([^"]+)">([^<]+)', html):
             url, match_title = match.groups()

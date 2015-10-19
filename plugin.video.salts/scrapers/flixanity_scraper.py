@@ -25,6 +25,7 @@ import json
 from salts_lib import log_utils
 from salts_lib.trans_utils import i18n
 from salts_lib.constants import VIDEO_TYPES
+from salts_lib.constants import FORCE_NO_MATCH
 from salts_lib.constants import QUALITIES
 from salts_lib.constants import XHR
 
@@ -59,7 +60,7 @@ class Flixanity_Scraper(scraper.Scraper):
     def get_sources(self, video):
         source_url = self.get_url(video)
         sources = []
-        if source_url:
+        if source_url and source_url != FORCE_NO_MATCH:
             url = urlparse.urljoin(self.base_url, source_url)
             html = self._http_get(url, cache_limit=.5)
             if video.video_type == VIDEO_TYPES.MOVIE:
@@ -73,7 +74,7 @@ class Flixanity_Scraper(scraper.Scraper):
             if match and self.__token is not None:
                 data = {'action': action, 'idEl': match.group(1), 'token': self.__token}
                 ajax_url = urlparse.urljoin(self.base_url, EMBED_URL)
-                html = self._http_get(ajax_url, data=data, headers=XHR, cache_limit=0)
+                html = self._http_get(ajax_url, data=data, headers=XHR, cache_limit=.25)
                 html = html.replace('\\"', '"').replace('\\/', '/')
                  
                 pattern = '<IFRAME\s+SRC="([^"]+)'
@@ -102,7 +103,7 @@ class Flixanity_Scraper(scraper.Scraper):
         search_url = urlparse.urljoin(self.base_url, 'cautare')
         timestamp = int(time.time() * 1000)
         query = {'q': title, 'limit': '100', 'timestamp': timestamp, 'verifiedCheck': self.__token}
-        html = self._http_get(search_url, data=query, headers=XHR, cache_limit=0)
+        html = self._http_get(search_url, data=query, headers=XHR, cache_limit=1)
         if video_type in [VIDEO_TYPES.TVSHOW, VIDEO_TYPES.EPISODE]:
             media_type = 'TV SHOW'
         else:

@@ -143,12 +143,16 @@ def browse_urls():
     urls = db_connection.get_all_urls(order_matters=True)
     kodi.create_item({'mode': MODES.FLUSH_CACHE}, '***%s***' % (i18n('delete_cache')), thumb=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
     for url in urls:
-        kodi.create_item({'mode': MODES.DELETE_URL, 'url': url[0]}, url[0], thumb=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
+        if url[1]:
+            label = '%s (%s)' % (url[0], url[1])
+        else:
+            label = url[0]
+        kodi.create_item({'mode': MODES.DELETE_URL, 'url': url[0], 'data': url[1]}, label, thumb=utils.art('settings.png'), fanart=utils.art('fanart.jpg'))
     kodi.end_of_directory()
 
-@url_dispatcher.register(MODES.DELETE_URL, ['url'])
-def delete_url(url):
-    db_connection.delete_cached_url(url)
+@url_dispatcher.register(MODES.DELETE_URL, ['url'], ['data'])
+def delete_url(url, data=''):
+    db_connection.delete_cached_url(url, data)
     xbmc.executebuiltin("XBMC.Container.Refresh")
 
 @url_dispatcher.register(MODES.RES_SETTINGS)
@@ -1360,7 +1364,7 @@ def set_related_url(mode, video_type, title, year, trakt_id, season='', episode=
                 temp_year = year
                 while True:
                     dialog = xbmcgui.Dialog()
-                    choices = [i18n('manual_search')]
+                    choices = [i18n('manual_search'), '[COLOR green]%s[/COLOR]' % (i18n('force_no_match'))]
                     try:
                         log_utils.log('Searching for: |%s|%s|' % (temp_title, temp_year), xbmc.LOGDEBUG)
                         results = related_list[index]['class'].search(video_type, temp_title, temp_year)
@@ -1380,8 +1384,11 @@ def set_related_url(mode, video_type, title, year, trakt_id, season='', episode=
                                 match = re.match('([^\(]+)\s*\(*(\d{4})?\)*', keyboard.getText())
                                 temp_title = match.group(1).strip()
                                 temp_year = match.group(2) if match.group(2) else ''
-                        elif results_index > 0:
-                            utils.update_url(video_type, title, year, related_list[index]['name'], related_list[index]['url'], results[results_index - 1]['url'], season, episode)
+                        elif results_index == 1:
+                            utils.update_url(video_type, title, year, related_list[index]['name'], related_list[index]['url'], FORCE_NO_MATCH, season, episode)
+                            break
+                        elif results_index > 1:
+                            utils.update_url(video_type, title, year, related_list[index]['name'], related_list[index]['url'], results[results_index - 2]['url'], season, episode)
                             kodi.notify(msg=i18n('rel_url_set') % (related_list[index]['name']), duration=5000)
                             break
                         else:
@@ -1692,8 +1699,10 @@ def add_to_library(video_type, title, year, trakt_id):
                 for episode in episodes:
                     ep_num = episode['number']
                     air_date = utils.make_air_date(episode['first_aired'])
-                    if exclude_local and scraper.get_url(ScraperVideo(VIDEO_TYPES.EPISODE, title, year, trakt_id, season_num, ep_num, episode['title'], air_date)):
-                        continue
+                    if exclude_local:
+                        ep_url = scraper.get_url(ScraperVideo(VIDEO_TYPES.EPISODE, title, year, trakt_id, season_num, ep_num, episode['title'], air_date))
+                        if ep_url and ep_url != FORCE_NO_MATCH:
+                            continue
                     
                     if utils.show_requires_source(trakt_id):
                         require_source = True
@@ -1711,8 +1720,10 @@ def add_to_library(video_type, title, year, trakt_id):
                     write_strm(strm_string, final_path, VIDEO_TYPES.EPISODE, show['title'], show['year'], trakt_id, season_num, ep_num, require_source=require_source)
 
     elif video_type == VIDEO_TYPES.MOVIE:
-        if exclude_local and scraper.get_url(ScraperVideo(video_type, title, year, trakt_id)):
-            raise Exception(i18n('local_exists'))
+        if exclude_local:
+            movie_url = scraper.get_url(ScraperVideo(video_type, title, year, trakt_id))
+            if movie_url and movie_url != FORCE_NO_MATCH:
+                raise Exception(i18n('local_exists'))
         
         save_path = kodi.get_setting('movie-folder')
         save_path = xbmc.translatePath(save_path)
