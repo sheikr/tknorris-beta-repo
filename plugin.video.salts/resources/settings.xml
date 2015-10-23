@@ -89,7 +89,8 @@
 
     <category label="30571">
         <setting id="auto-play" type="bool" label="30572" default="false"/>
-        <setting id="source-win" type="labelenum" label="30573" values="Directory|Dialog" default="Dialog"/>        
+        <setting id="source-win" type="labelenum" label="30573" values="Directory|Dialog" default="Dialog"/>
+        <setting id="show_pd" type="bool" label="30648" default="false"/>        
         <setting id="show_download" type="bool" label="30574" default="false"/>
         <setting id="down_progress" type="enum" label="30575" lvalues="30511|30589|30590" default="1" enable="eq(-1,true)"/>
         <setting id="tv-download-folder" type="folder" label="30576"
@@ -236,6 +237,14 @@
          <setting id="Dizimag_try" type="number" default="0" visible="false"/>
          <setting id="Dizimag_fail" type="number" default="0" visible="false"/>
          <setting id="Dizimag_check" type="number" default="0" visible="false"/>
+         <setting id="EasyNews-enable" type="bool" label="EasyNews Enabled" default="true" visible="true"/>
+         <setting id="EasyNews-base_url" type="text" label="    Base Url" default="http://members.easynews.com" visible="eq(-1,true)"/>
+         <setting id="EasyNews-sub_check" type="bool" label="    Include in Page Existence checks?" default="false" visible="eq(-2,true)"/>
+         <setting id="EasyNews_try" type="number" default="0" visible="false"/>
+         <setting id="EasyNews_fail" type="number" default="0" visible="false"/>
+         <setting id="EasyNews_check" type="number" default="0" visible="false"/>
+         <setting id="EasyNews-username" type="text" label="     Username" default="" visible="eq(-6,true)"/>
+         <setting id="EasyNews-password" type="text" label="     Password" option="hidden" default="" visible="eq(-7,true)"/>
          <setting id="filmikz.ch-enable" type="bool" label="filmikz.ch Enabled" default="true" visible="true"/>
          <setting id="filmikz.ch-base_url" type="text" label="    Base Url" default="http://filmikz.ch" visible="eq(-1,true)"/>
          <setting id="filmikz.ch-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
@@ -268,14 +277,6 @@
          <setting id="IceFilms_try" type="number" default="0" visible="false"/>
          <setting id="IceFilms_fail" type="number" default="0" visible="false"/>
          <setting id="IceFilms_check" type="number" default="0" visible="false"/>
-         <setting id="iStreamHD-enable" type="bool" label="iStreamHD Enabled" default="true" visible="true"/>
-         <setting id="iStreamHD-base_url" type="text" label="    Base Url" default="http://istreamhd.org" visible="eq(-1,true)"/>
-         <setting id="iStreamHD-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
-         <setting id="iStreamHD_try" type="number" default="0" visible="false"/>
-         <setting id="iStreamHD_fail" type="number" default="0" visible="false"/>
-         <setting id="iStreamHD_check" type="number" default="0" visible="false"/>
-         <setting id="iStreamHD-username" type="text" label="     Username" default="" visible="eq(-6,true)"/>
-         <setting id="iStreamHD-password" type="text" label="     Password" option="hidden" default="" visible="eq(-7,true)"/>
          <setting id="iWatchOnline-enable" type="bool" label="iWatchOnline Enabled" default="true" visible="true"/>
          <setting id="iWatchOnline-base_url" type="text" label="    Base Url" default="https://www.iwatchonline.ag" visible="eq(-1,true)"/>
          <setting id="iWatchOnline-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
@@ -445,12 +446,6 @@
          <setting id="pftv_try" type="number" default="0" visible="false"/>
          <setting id="pftv_fail" type="number" default="0" visible="false"/>
          <setting id="pftv_check" type="number" default="0" visible="false"/>
-         <setting id="popcorntimefree-enable" type="bool" label="popcorntimefree Enabled" default="true" visible="true"/>
-         <setting id="popcorntimefree-base_url" type="text" label="    Base Url" default="https://browserpopcorn.xyz" visible="eq(-1,true)"/>
-         <setting id="popcorntimefree-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
-         <setting id="popcorntimefree_try" type="number" default="0" visible="false"/>
-         <setting id="popcorntimefree_fail" type="number" default="0" visible="false"/>
-         <setting id="popcorntimefree_check" type="number" default="0" visible="false"/>
          <setting id="PrimeWire-enable" type="bool" label="PrimeWire Enabled" default="true" visible="true"/>
          <setting id="PrimeWire-base_url" type="text" label="    Base Url" default="http://www.primewire.ag" visible="eq(-1,true)"/>
          <setting id="PrimeWire-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
@@ -509,15 +504,21 @@
          <setting id="stream-tv.co_try" type="number" default="0" visible="false"/>
          <setting id="stream-tv.co_fail" type="number" default="0" visible="false"/>
          <setting id="stream-tv.co_check" type="number" default="0" visible="false"/>
-    </category>
-
-    <category label="Scrapers 5">
          <setting id="streamallthis.is-enable" type="bool" label="streamallthis.is Enabled" default="true" visible="true"/>
          <setting id="streamallthis.is-base_url" type="text" label="    Base Url" default="http://streamallthis.is" visible="eq(-1,true)"/>
          <setting id="streamallthis.is-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
          <setting id="streamallthis.is_try" type="number" default="0" visible="false"/>
          <setting id="streamallthis.is_fail" type="number" default="0" visible="false"/>
          <setting id="streamallthis.is_check" type="number" default="0" visible="false"/>
+    </category>
+
+    <category label="Scrapers 5">
+         <setting id="torba.se-enable" type="bool" label="torba.se Enabled" default="true" visible="true"/>
+         <setting id="torba.se-base_url" type="text" label="    Base Url" default="http://torba.se" visible="eq(-1,true)"/>
+         <setting id="torba.se-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
+         <setting id="torba.se_try" type="number" default="0" visible="false"/>
+         <setting id="torba.se_fail" type="number" default="0" visible="false"/>
+         <setting id="torba.se_check" type="number" default="0" visible="false"/>
          <setting id="tunemovie-enable" type="bool" label="tunemovie Enabled" default="true" visible="true"/>
          <setting id="tunemovie-base_url" type="text" label="    Base Url" default="http://tunemovie.is" visible="eq(-1,true)"/>
          <setting id="tunemovie-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
@@ -606,21 +607,6 @@
          <setting id="yify.tv_try" type="number" default="0" visible="false"/>
          <setting id="yify.tv_fail" type="number" default="0" visible="false"/>
          <setting id="yify.tv_check" type="number" default="0" visible="false"/>
-    </category>
-
-    <category label="Scrapers 6">
-         <setting id="yshows-enable" type="bool" label="yshows Enabled" default="true" visible="true"/>
-         <setting id="yshows-base_url" type="text" label="    Base Url" default="http://yshow.me" visible="eq(-1,true)"/>
-         <setting id="yshows-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
-         <setting id="yshows_try" type="number" default="0" visible="false"/>
-         <setting id="yshows_fail" type="number" default="0" visible="false"/>
-         <setting id="yshows_check" type="number" default="0" visible="false"/>
-         <setting id="zumvo.com-enable" type="bool" label="zumvo.com Enabled" default="true" visible="true"/>
-         <setting id="zumvo.com-base_url" type="text" label="    Base Url" default="http://zumvo.so" visible="eq(-1,true)"/>
-         <setting id="zumvo.com-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
-         <setting id="zumvo.com_try" type="number" default="0" visible="false"/>
-         <setting id="zumvo.com_fail" type="number" default="0" visible="false"/>
-         <setting id="zumvo.com_check" type="number" default="0" visible="false"/>
     </category>
 
     <category label="30634">

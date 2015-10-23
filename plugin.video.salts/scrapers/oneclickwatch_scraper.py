@@ -51,8 +51,9 @@ class OneClickWatch_Scraper(scraper.Scraper):
         source_url = self.get_url(video)
         hosters = []
         if source_url and source_url != FORCE_NO_MATCH:
+            headers = {'Referer': self.base_url}
             url = urlparse.urljoin(self.base_url, source_url)
-            html = self._http_get(url, cache_limit=.5)
+            html = self._http_get(url, headers=headers, cache_limit=.5)
 
             q_str = ''
             match = re.search('class="title">([^<]+)', html)
@@ -82,9 +83,9 @@ class OneClickWatch_Scraper(scraper.Scraper):
         return settings
 
     def search(self, video_type, title, year):
-        html = self._http_get(self.base_url, cache_limit=.25)
+        html = self._http_get(self.base_url, cache_limit=0)
         extra = ''
-        for match in re.finditer('<input\s+type="hidden"[^>]+name="([^"]+)"\s+value="([^"]+)', html):
+        for match in re.finditer('<input\s+type=[\'"]hidden[\'"][^>]+name=[\'"]([^\'"]+)[\'"][^>]+value=[\'"]([^\'"]+)', html):
             extra += '&%s=%s' % (match.group(1), urllib.quote(match.group(2)))
             
         search_url = urlparse.urljoin(self.base_url, '/?s=%s' % (urllib.quote_plus(title)))
