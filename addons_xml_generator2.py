@@ -139,7 +139,7 @@ if (__name__ == "__main__"):
         filesinrootdir = os.listdir(rootdir)
         
         for x in filesinrootdir:
-            if re.search("^(plugin|script|service|skin|repository)" , x) and not re.search('.zip', x):
+            if re.search("^(context|plugin|script|service|skin|repository)" , x) and not re.search('.zip', x):
                 zipfilename = x + '.zip'
                 zipfilenamefirstpart = zipfilename[:-4]
                 zipfilenamelastpart = zipfilename[len(zipfilename) - 4:]
