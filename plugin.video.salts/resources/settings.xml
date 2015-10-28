@@ -84,6 +84,7 @@
         <setting id="update_subs-notify" type="bool" label="30568" default="false" visible="true"/>
         <setting id="include_movies" type="bool" label="30569" default="false" visible="true"/>
         <setting id="cleanup-subscriptions" type="bool" label="30570" default="false" visible="true"/>
+        <setting id="create_nfo" type="enum" label="30649" lvalues="30604|30650|30651" default="0" visible="true"/>
         <setting id="exists_list" type="text" visible="false"/>
     </category>
 
@@ -607,6 +608,21 @@
          <setting id="yify.tv_try" type="number" default="0" visible="false"/>
          <setting id="yify.tv_fail" type="number" default="0" visible="false"/>
          <setting id="yify.tv_check" type="number" default="0" visible="false"/>
+    </category>
+
+    <category label="Scrapers 6">
+         <setting id="yshows-enable" type="bool" label="yshows Enabled" default="true" visible="true"/>
+         <setting id="yshows-base_url" type="text" label="    Base Url" default="http://yshow.me" visible="eq(-1,true)"/>
+         <setting id="yshows-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
+         <setting id="yshows_try" type="number" default="0" visible="false"/>
+         <setting id="yshows_fail" type="number" default="0" visible="false"/>
+         <setting id="yshows_check" type="number" default="0" visible="false"/>
+         <setting id="zumvo.com-enable" type="bool" label="zumvo.com Enabled" default="true" visible="true"/>
+         <setting id="zumvo.com-base_url" type="text" label="    Base Url" default="http://zumvo.so" visible="eq(-1,true)"/>
+         <setting id="zumvo.com-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
+         <setting id="zumvo.com_try" type="number" default="0" visible="false"/>
+         <setting id="zumvo.com_fail" type="number" default="0" visible="false"/>
+         <setting id="zumvo.com_check" type="number" default="0" visible="false"/>
     </category>
 
     <category label="30634">

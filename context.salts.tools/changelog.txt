@@ -1,2 +1,5 @@
+[B]Version 0.0.2[/B]
+- Add scraper sort order and search to context menu
+
 [B]Version 0.0.1[/B]
 - Initial version

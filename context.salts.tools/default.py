@@ -27,7 +27,7 @@ def __enum(**enums):
     return type('Enum', (), enums)
 
 MODES = __enum(GET_SOURCES='get_sources', SET_URL_MANUAL='set_url_manual', SET_URL_SEARCH='set_url_search', SELECT_SOURCE='select_source', DOWNLOAD_SOURCE='download_source',
-               ADD_TO_LIST='add_to_list')
+               ADD_TO_LIST='add_to_list', SCRAPERS='scrapers', SEARCH='search')
 VIDEO_TYPES = __enum(TVSHOW='TV Show', MOVIE='Movie', EPISODE='Episode', SEASON='Season')
 SECTIONS = __enum(TV='TV', MOVIES='Movies')
 
@@ -80,6 +80,19 @@ def add_to_list():
         runstring = 'RunPlugin(plugin://plugin.video.salts%s)' % (kodi.get_plugin_url(queries))
         xbmc.executebuiltin(runstring)
 
+def scraper_sort_order():
+    queries = {'mode': MODES.SCRAPERS}
+    runstring = 'RunAddon(plugin.video.salts,%s)' % (kodi.get_plugin_url(queries))
+    xbmc.executebuiltin(runstring)
+    
+def addon_settings():
+    xbmc.executebuiltin('Addon.OpenSettings(plugin.video.salts)')
+
+def search(section):
+    queries = {'mode': MODES.SEARCH, 'section': section}
+    runstring = 'RunPlugin(plugin://plugin.video.salts%s)' % (kodi.get_plugin_url(queries))
+    xbmc.executebuiltin(runstring)
+    
 def __get_media_type():
     if xbmc.getCondVisibility('Container.Content(tvshows)'):
         return VIDEO_TYPES.TVSHOW
@@ -115,6 +128,10 @@ def __get_tools(path):
         ((VIDEO_TYPES.MOVIE, VIDEO_TYPES.EPISODE), 'Select Source', source_action, [MODES.SELECT_SOURCE, path]),
         ((VIDEO_TYPES.MOVIE, VIDEO_TYPES.EPISODE), 'Download Source', source_action, [MODES.DOWNLOAD_SOURCE, path]),
         ((VIDEO_TYPES.MOVIE, VIDEO_TYPES.TVSHOW), 'Add to List', add_to_list, []),
+        ((VIDEO_TYPES.MOVIE), 'Movie Search', search, [SECTIONS.MOVIES]),
+        ((VIDEO_TYPES.TVSHOW), 'TV Show Search', search, [SECTIONS.TV]),
+        ((VIDEO_TYPES.MOVIE, VIDEO_TYPES.TVSHOW, VIDEO_TYPES.SEASON, VIDEO_TYPES.EPISODE), 'Scraper Sort Order', scraper_sort_order, []),
+        ((VIDEO_TYPES.MOVIE, VIDEO_TYPES.TVSHOW, VIDEO_TYPES.SEASON, VIDEO_TYPES.EPISODE), 'Addon Settings', addon_settings, []),
         ((VIDEO_TYPES.MOVIE, VIDEO_TYPES.TVSHOW), 'Set Related Url (Search)', set_related_url, [MODES.SET_URL_SEARCH]),
         ((VIDEO_TYPES.MOVIE, VIDEO_TYPES.TVSHOW), 'Set Related Url (Manual)', set_related_url, [MODES.SET_URL_MANUAL])
     ]
