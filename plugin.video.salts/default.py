@@ -194,6 +194,8 @@ def auto_conf():
         kodi.set_setting('calendar-day', '-1')
         kodi.set_setting('source_timeout', '20')
         kodi.set_setting('enable_sort', 'true')
+        kodi.set_setting('include_watchlist_next', 'true')
+        kodi.set_setting('filter_direct', 'true')
         kodi.set_setting('sort1_field', '2')
         kodi.set_setting('sort2_field', '5')
         kodi.set_setting('sort3_field', '1')
@@ -201,7 +203,7 @@ def auto_conf():
         kodi.set_setting('sort5_field', '4')
         sso = [
             'Local', 'EasyNews', 'DirectDownload.tv', 'NoobRoom', 'OneClickTVShows', '123Movies', 'yify-streaming', 'stream-tv.co', 'streamallthis.is', 'SezonLukDizi', 'Dizimag', 'Dizilab',
-            'MovieFarsi', 'Shush.se', 'Dizigold', 'torba.se', 'IzlemeyeDeger', 'Rainierland', 'funtastic-vids', 'clickplay.to', 'IceFilms', 'ororo.tv', 'afdah.org', 'xmovies8', 'OnlineMoviesIs',
+            'Dizist', 'MovieFarsi', 'Shush.se', 'Dizigold', 'torba.se', 'IzlemeyeDeger', 'Rainierland', 'funtastic-vids', 'clickplay.to', 'IceFilms', 'ororo.tv', 'afdah.org', 'xmovies8', 'OnlineMoviesIs',
             'OnlineMoviesPro', 'Flixanity', 'hdmz', 'niter.tv', 'yify.tv', 'pubfilm', 'movietv.to', 'beinmovie', 'popcorntimefree', 'tunemovie', 'MintMovies', 'MovieNight', 'cmz', 'Putlocker',
             'viooz.ac', 'view47', 'MoviesHD', 'OnlineMovies', 'MoviesOnline7', 'wmo.ch', 'zumvo.com', 'mvsnap', 'Dizibox', 'alluc.com', 'MyVideoLinks.eu', 'OneClickWatch', 'RLSSource.net',
             'TVRelease.Net', 'FilmStreaming.in', 'PrimeWire', 'WatchFree.to', 'CouchTunerV2', 'CouchTunerV1', 'Watch8Now', 'yshows', 'pftv', 'wso.ch', 'WatchSeries', 'SolarMovie',
@@ -1039,8 +1041,8 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
             kodi.notify(msg=i18n('no_useable_sources') % (msg), duration=5000)
             return False
 
-        pseudo_tv = xbmcgui.Window(10000).getProperty('PseudoTVRunning')
-        if pseudo_tv == 'True' or (mode == MODES.GET_SOURCES and kodi.get_setting('auto-play') == 'true'):
+        pseudo_tv = xbmcgui.Window(10000).getProperty('PseudoTVRunning').lower()
+        if pseudo_tv == 'true' or (mode == MODES.GET_SOURCES and kodi.get_setting('auto-play') == 'true'):
             auto_play_sources(hosters, video_type, trakt_id, dialog, season, episode)
         else:
             if dialog or (dialog is None and kodi.get_setting('source-win') == 'Dialog'):
@@ -1128,7 +1130,8 @@ def play_source(mode, hoster_url, direct, video_type, trakt_id, dialog, season='
                 return False
 
     resume_point = 0
-    if mode not in [MODES.DOWNLOAD_SOURCE, MODES.DIRECT_DOWNLOAD]:
+    pseudo_tv = xbmcgui.Window(10000).getProperty('PseudoTVRunning').lower()
+    if pseudo_tv != 'true' and mode not in [MODES.DOWNLOAD_SOURCE, MODES.DIRECT_DOWNLOAD]:
         if utils.bookmark_exists(trakt_id, season, episode):
             if utils.get_resume_choice(trakt_id, season, episode):
                 resume_point = utils.get_bookmark(trakt_id, season, episode)
@@ -1735,20 +1738,21 @@ def make_path(base_path, video_type, title, year='', season=''):
         path = os.path.join(path, 'Season %s' % (season))
     return path
 
-def nfo_url(video_type, meta_ids):
+def nfo_url(video_type, ids):
     tvdb_url = 'http://thetvdb.com/?tab=series&id=%s'
     tmdb_url = 'https://www.themoviedb.org/%s/%s'
     imdb_url = 'http://www.imdb.com/title/%s/'
 
-    if meta_ids.get('tvdb', ''):
-        return tvdb_url % str(meta_ids['tvdb'])
-    elif meta_ids['tmdb']:
-        media_string = 'movie'
+    if 'tvdb' in ids:
+        return tvdb_url % (str(ids['tvdb']))
+    elif 'tmdb' in ids:
         if video_type == VIDEO_TYPES.TVSHOW:
             media_string = 'tv'
-        return tmdb_url % (media_string, str(meta_ids['tmdb']))
-    elif meta_ids['imdb']:
-        return imdb_url % str(meta_ids['imdb'])
+        else:
+            media_string = 'movie'
+        return tmdb_url % (media_string, str(ids['tmdb']))
+    elif 'imdb' in ids:
+        return imdb_url % (str(ids['imdb']))
     else:
         return ''
 
