@@ -1632,7 +1632,7 @@ def export_db():
                 export_filename = keyboard.getText()
                 export_file = export_path + export_filename
                 db_connection.export_from_db(export_file)
-                kodi.notify(header=i18n('export_successful'), msg=i18n('exported_to'))
+                kodi.notify(header=i18n('export_successful'), msg=i18n('exported_to') % (export_file), duration=5000)
     except Exception as e:
         log_utils.log('Export Failed: %s' % (e), xbmc.LOGERROR)
         kodi.notify(header=i18n('export'), msg=i18n('export_failed'))
@@ -2090,11 +2090,6 @@ def make_item(section_params, show, menu_items=None):
     liz.setProperty('trakt_id', str(trakt_id))
     people = trakt_api.get_people(section_params['section'], trakt_id) if kodi.get_setting('include_people') == 'true' else None
     info = utils.make_info(show, people=people)
-    liz.setProperty('IsPlayable', 'false')
-#     if not section_params['folder']:
-#         liz.setProperty('IsPlayable', 'true')
-#     else:
-#         liz.setProperty('IsPlayable', 'false')
 
     if 'TotalEpisodes' in info:
         liz.setProperty('TotalEpisodes', str(info['TotalEpisodes']))
