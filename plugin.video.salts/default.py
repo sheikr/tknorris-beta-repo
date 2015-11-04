@@ -196,11 +196,14 @@ def auto_conf():
         kodi.set_setting('enable_sort', 'true')
         kodi.set_setting('include_watchlist_next', 'true')
         kodi.set_setting('filter_direct', 'true')
+        kodi.set_setting('filter_unusable', 'true')
+        kodi.set_setting('show_debrid', 'true')
         kodi.set_setting('sort1_field', '2')
         kodi.set_setting('sort2_field', '5')
-        kodi.set_setting('sort3_field', '1')
-        kodi.set_setting('sort4_field', '3')
-        kodi.set_setting('sort5_field', '4')
+        kodi.set_setting('sort3_field', '6')
+        kodi.set_setting('sort4_field', '1')
+        kodi.set_setting('sort5_field', '3')
+        kodi.set_setting('sort6_field', '4')
         sso = [
             'Local', 'EasyNews', 'DirectDownload.tv', 'NoobRoom', 'OneClickTVShows', '123Movies', 'yify-streaming', 'stream-tv.co', 'streamallthis.is', 'SezonLukDizi', 'Dizimag', 'Dizilab',
             'Dizist', 'MovieFarsi', 'Shush.se', 'Dizigold', 'torba.se', 'IzlemeyeDeger', 'Rainierland', 'funtastic-vids', 'clickplay.to', 'IceFilms', 'ororo.tv', 'afdah.org', 'xmovies8', 'OnlineMoviesIs',
@@ -1027,13 +1030,13 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
             hosters = utils.filter_quality(video_type, hosters)
             if xbmc.abortRequested or pd.is_canceled(): return False
 
+            hosters = apply_urlresolver(hosters)
+
             if kodi.get_setting('enable_sort') == 'true':
                 if kodi.get_setting('filter-unknown') == 'true':
                     hosters = utils.filter_unknown_hosters(hosters)
                 SORT_KEYS['source'] = utils.make_source_sort_key()
                 hosters.sort(key=utils.get_sort_key)
-    
-            hosters = filter_unusable_hosters(hosters)
     
         if not hosters:
             log_utils.log('No Usable Sources found for: |%s|' % (video))
@@ -1053,19 +1056,60 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
     finally:
         utils.reap_workers(workers, None)
 
-def filter_unusable_hosters(hosters):
+def apply_urlresolver(hosters):
+    import urlresolver.plugnplay
+    resolvers = urlresolver.plugnplay.man.implementors(urlresolver.UrlResolver)
+    debrid_resolvers = [resolver for resolver in resolvers if resolver.isUniversal()]
     filtered_hosters = []
-    filter_max = int(kodi.get_setting('filter_unusable'))
+    debrid_hosts = {}
     unk_hosts = {}
-    import urlresolver
-    for i, hoster in enumerate(hosters):
-        if i < filter_max and 'direct' in hoster and hoster['direct'] == False and hoster['host']:
-            hmf = urlresolver.HostedMediaFile(host=hoster['host'], media_id='dummy')  # use dummy media_id to force host validation
-            if not hmf:
-                log_utils.log('Unusable source %s (%s) from %s' % (hoster['url'], hoster['host'], hoster['class'].get_name()), xbmc.LOGINFO)
-                unk_hosts[hoster['host']] = unk_hosts.get(hoster['host'], 0) + 1
-                continue
-        filtered_hosters.append(hoster)
+    known_hosts = {}
+    filter_unusable = kodi.get_setting('filter_unusable') == 'true'
+    show_debrid = kodi.get_setting('show_debrid') == 'true'
+    if not filter_unusable and not show_debrid:
+        return hosters
+    
+    for hoster in hosters:
+        if 'direct' in hoster and hoster['direct'] == False and hoster['host']:
+            host = hoster['host']
+            if filter_unusable:
+                if host in unk_hosts:
+                    # log_utils.log('Unknown Hit: %s from %s' % (host, hoster['class'].get_name()), log_utils.LOGDEBUG)
+                    unk_hosts[host] += 1
+                    continue
+                elif host in known_hosts:
+                    # log_utils.log('Known Hit: %s from %s' % (host, hoster['class'].get_name()), log_utils.LOGDEBUG)
+                    known_hosts[host] += 1
+                    filtered_hosters.append(hoster)
+                else:
+                    hmf = urlresolver.HostedMediaFile(host=host, media_id='dummy')  # use dummy media_id to force host validation
+                    if hmf:
+                        # log_utils.log('Known Miss: %s from %s' % (host, hoster['class'].get_name()), log_utils.LOGDEBUG)
+                        known_hosts[host] = known_hosts.get(host, 0) + 1
+                        filtered_hosters.append(hoster)
+                    else:
+                        # log_utils.log('Unknown Miss: %s from %s' % (host, hoster['class'].get_name()), log_utils.LOGDEBUG)
+                        unk_hosts[host] = unk_hosts.get(host, 0) + 1
+                        continue
+            else:
+                filtered_hosters.append(hoster)
+            
+            if host in debrid_hosts:
+                # log_utils.log('Debrid cache found for %s: %s' % (host, debrid_hosts[host]), log_utils.LOGDEBUG)
+                hoster['debrid'] = debrid_hosts[host]
+            else:
+                temp_resolvers = []
+                for resolver in debrid_resolvers:
+                    if resolver.valid_url('', host):
+                        temp_resolvers.append(resolver.name[:3].upper())
+    
+                # log_utils.log('%s supported by: %s' % (host, temp_resolvers), log_utils.LOGDEBUG)
+                debrid_hosts[host] = temp_resolvers
+                if temp_resolvers:
+                    hoster['debrid'] = temp_resolvers
+        else:
+            filtered_hosters.append(hoster)
+            
     log_utils.log('Discarded Hosts: %s' % (sorted(unk_hosts.items(), key=lambda x: x[1], reverse=True)), xbmc.LOGDEBUG)
     return filtered_hosters
 
@@ -1227,10 +1271,7 @@ def pick_source_dialog(hosters):
     for item in hosters:
         if item['multi-part']:
             continue
-
-        label = item['class'].format_source_label(item)
-        label = '[%s] %s' % (item['class'].get_name(), label)
-        item['label'] = label
+        item['label'] = utils.format_source_label(item)
 
     dialog = xbmcgui.Dialog()
     index = dialog.select(i18n('choose_stream'), [item['label'] for item in hosters if 'label' in item])
@@ -1260,10 +1301,7 @@ def pick_source_dir(mode, hosters, video_type, trakt_id, season='', episode=''):
         if item['multi-part']:
             continue
 
-        label = item['class'].format_source_label(item)
-        label = '[%s] %s' % (item['class'].get_name(), label)
-        item['label'] = label
-
+        item['label'] = utils.format_source_label(item)
         # log_utils.log(item, xbmc.LOGDEBUG)
         queries = {'mode': next_mode, 'class_url': item['url'], 'direct': item['direct'], 'video_type': video_type, 'trakt_id': trakt_id,
                    'season': season, 'episode': episode, 'class_name': item['class'].get_name(), 'rand': time.time()}

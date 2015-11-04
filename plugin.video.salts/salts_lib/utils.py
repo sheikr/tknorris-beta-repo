@@ -45,7 +45,8 @@ SORT_FIELDS = [
     (SORT_LIST[int(kodi.get_setting('sort2_field'))], SORT_SIGNS[kodi.get_setting('sort2_order')]),
     (SORT_LIST[int(kodi.get_setting('sort3_field'))], SORT_SIGNS[kodi.get_setting('sort3_order')]),
     (SORT_LIST[int(kodi.get_setting('sort4_field'))], SORT_SIGNS[kodi.get_setting('sort4_order')]),
-    (SORT_LIST[int(kodi.get_setting('sort5_field'))], SORT_SIGNS[kodi.get_setting('sort5_order')])]
+    (SORT_LIST[int(kodi.get_setting('sort5_field'))], SORT_SIGNS[kodi.get_setting('sort5_order')]),
+    (SORT_LIST[int(kodi.get_setting('sort6_field'))], SORT_SIGNS[kodi.get_setting('sort6_order')])]
 
 last_check = datetime.datetime.fromtimestamp(0)
 
@@ -347,6 +348,11 @@ def get_sort_key(item):
             if value in SORT_KEYS[field]:
                 item_sort_key.append(sign * int(SORT_KEYS[field][value]))
             else:  # assume all unlisted values sort as worst
+                item_sort_key.append(sign * -1)
+        elif field == 'debrid':
+            if field in item:
+                item_sort_key.append(sign * bool(item[field]))
+            else:
                 item_sort_key.append(sign * -1)
         else:
             if item[field] is None:
@@ -659,6 +665,16 @@ def format_sub_label(sub):
     label = '[COLOR %s]%s[/COLOR]' % (color, label)
     return label
 
+def format_source_label(item):
+    label = item['class'].format_source_label(item)
+    label = '[%s] %s' % (item['class'].get_name(), label)
+    if kodi.get_setting('show_debrid') == 'true' and 'debrid' in item and item['debrid']:
+        label = '[COLOR green]%s[/COLOR]' % (label)
+    if 'debrid' in item and item['debrid']:
+        label += ' (%s)' % (', '.join(item['debrid']))
+    item['label'] = label
+    return label
+    
 def srt_indicators_enabled():
     return (kodi.get_setting('enable-subtitles') == 'true' and (kodi.get_setting('subtitle-indicator') == 'true'))
 

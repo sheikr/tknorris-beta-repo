@@ -1232,7 +1232,7 @@ msgid "Maximum Source Results (0=No Limit)"
 msgstr ""
 
 msgctxt "#30580"
-msgid "Filter Top Unusable Sources (0=None)"
+msgid "Filter Out Unusable Sources"
 msgstr ""
 
 msgctxt "#30581"
@@ -1526,3 +1526,20 @@ msgstr ""
 msgctxt "#30651"
 msgid "All"
 msgstr ""
+
+msgctxt "#30652"
+msgid "Show Debrid Supported Sources in Green"
+msgstr ""
+
+msgctxt "#30653"
+msgid "6th Sort Key"
+msgstr ""
+
+msgctxt "#30654"
+msgid "6th Sort Key Order"
+msgstr ""
+
+msgctxt "#30655"
+msgid "Debrid"
+msgstr ""
+
