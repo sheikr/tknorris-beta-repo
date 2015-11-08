@@ -82,7 +82,7 @@ class Vidics_Scraper(scraper.Scraper):
             search_url = urlparse.urljoin(self.base_url, '/Category-Movies/Genre-Any/Letter-Any/ByPopularity/1/Search-')
         else:
             search_url = urlparse.urljoin(self.base_url, '/Category-TvShows/Genre-Any/Letter-Any/ByPopularity/1/Search-')
-        search_url += '%s.html' % (urllib.quote_plus(title))
+        search_url += '%s.htm' % (urllib.quote_plus(title))
         html = self._http_get(search_url, cache_limit=.25)
 
         results = []

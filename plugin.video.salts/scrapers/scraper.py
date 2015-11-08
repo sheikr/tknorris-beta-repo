@@ -44,13 +44,13 @@ from salts_lib.constants import QUALITIES
 from salts_lib.constants import HOST_Q
 from salts_lib.constants import Q_ORDER
 from salts_lib.constants import BLOG_Q_MAP
+from salts_lib.constants import SHORT_MONS
 import threading
 
 BASE_URL = ''
 CAPTCHA_BASE_URL = 'http://www.google.com/recaptcha/api'
 COOKIEPATH = xbmc.translatePath(kodi.get_profile())
 MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-SHORT_MONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 Q_LIST = [item[0] for item in sorted(Q_ORDER.items(), key=lambda x:x[1])]
 MAX_RESPONSE = 1024 * 1024
 
@@ -446,7 +446,7 @@ class Scraper(object):
             if 'quality' in post_data:
                 post_title += '- [%s]' % (post_data['quality'])
 
-            if filter_days:
+            if filter_days and date_format and 'date' in post_data:
                 try: post_date = datetime.datetime.strptime(post_data['date'], date_format).date()
                 except TypeError: post_date = datetime.datetime(*(time.strptime(post_data['date'], date_format)[0:6])).date()
                 if today - post_date > filter_days:
@@ -605,6 +605,7 @@ class Scraper(object):
         return quality
 
     def _gv_get_quality(self, stream_url):
+        stream_url = urllib.unquote(stream_url)
         if 'itag=18' in stream_url or '=m18' in stream_url:
             return QUALITIES.MEDIUM
         elif 'itag=22' in stream_url or '=m22' in stream_url:
