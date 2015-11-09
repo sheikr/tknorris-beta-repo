@@ -88,13 +88,16 @@ class DDLValley_Scraper(scraper.Scraper):
         except: ep_airdate = ''
         
         page_url = [show_url]
-        while page_url:
+        too_old = False
+        while page_url and not too_old:
             url = urlparse.urljoin(self.base_url, page_url[0])
             html = self._http_get(url, cache_limit=1)
             headings = re.findall('<h2>\s*<a\s+href="([^"]+)[^>]+>(.*?)</a>', html)
             posts = dom_parser.parse_dom(html, 'div', {'id': 'post-\d+'})
             for heading, post in zip(headings, posts):
-                if self.__too_old(post): break
+                if self.__too_old(post):
+                    too_old = True
+                    break
                 if CATEGORIES[VIDEO_TYPES.TVSHOW] in post and show_url in post:
                     url, title = heading
                     if not force_title:

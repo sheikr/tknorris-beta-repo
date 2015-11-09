@@ -206,9 +206,9 @@ def auto_conf():
         kodi.set_setting('sort6_field', '4')
         sso = [
             'Local', 'EasyNews', 'DirectDownload.tv', 'NoobRoom', 'OneClickTVShows', '123Movies', 'yify-streaming', 'stream-tv.co', 'streamallthis.is', 'SezonLukDizi', 'Dizimag', 'Dizilab',
-            'Dizist', 'MovieFarsi', 'Shush.se', 'Dizigold', 'torba.se', 'IzlemeyeDeger', 'ReleaseBB', 'DDLValley', 'Rainierland', 'funtastic-vids', 'clickplay.to', 'IceFilms', 'ororo.tv', 'afdah.org',
+            'MovieFarsi', 'Shush.se', 'Dizigold', 'torba.se', 'IzlemeyeDeger', 'ReleaseBB', 'DDLValley', 'Rainierland', 'funtastic-vids', 'clickplay.to', 'IceFilms', 'ororo.tv', 'afdah.org',
             'xmovies8', 'OnlineMoviesIs', 'OnlineMoviesPro', 'Flixanity', 'hdmz', 'niter.tv', 'yify.tv', 'pubfilm', 'movietv.to', 'beinmovie', 'popcorntimefree', 'tunemovie', 'MintMovies',
-            'MovieNight', 'cmz', 'Putlocker', 'viooz.ac', 'view47', 'MoviesHD', 'OnlineMovies', 'MoviesOnline7', 'wmo.ch', 'zumvo.com', 'mvsnap', 'Dizibox', 'alluc.com', 'MyVideoLinks.eu',
+            'MovieNight', 'cmz', 'Putlocker', 'viooz.ac', 'view47', 'MoviesHD', 'OnlineMovies', 'MoviesOnline7', 'wmo.ch', 'zumvo.com', 'mvsnap', 'alluc.com', 'MyVideoLinks.eu',
             'OneClickWatch', 'RLSSource.net', 'TVRelease.Net', 'FilmStreaming.in', 'PrimeWire', 'WatchFree.to', 'CouchTunerV2', 'CouchTunerV1', 'Watch8Now', 'yshows', 'pftv', 'wso.ch',
             'WatchSeries', 'SolarMovie', 'UFlix.org', 'ch131', 'MovieTube', 'ayyex', 'moviestorm.eu', 'vidics.ch', 'Movie4K', 'LosMovies', 'MerDB', 'iWatchOnline', '2movies', 'iStreamHD',
             'afdah', 'filmikz.ch', 'movie25']
@@ -459,16 +459,23 @@ def show_history(section, page=1):
     totalItems = len(history)
     for item in history:
         if section == SECTIONS.MOVIES:
+            item['movie']['watched'] = True
             liz, liz_url = make_item(section_params, item['movie'])
         else:
-            liz, liz_url = make_episode_item(item['show'], item['episode'])
+            show = item['show']
+            fanart = show['images']['fanart']['full']
+            item['episode']['watched'] = True
+            menu_items = []
+            queries = {'mode': MODES.SEASONS, 'trakt_id': show['ids']['trakt'], 'fanart': fanart}
+            menu_items.append((i18n('browse_seasons'), 'Container.Update(%s)' % (kodi.get_plugin_url(queries))),)
+            liz, liz_url = make_episode_item(show, item['episode'], menu_items=menu_items)
             label = liz.getLabel()
-            label = '%s - %s' % (item['show']['title'], label.decode('utf-8', 'replace'))
+            label = '%s - %s' % (show['title'], label.decode('utf-8', 'replace'))
             liz.setLabel(label)
             
         label = liz.getLabel()
         watched_at = time.strftime('%Y-%m-%d', time.localtime(utils.iso_2_utc(item['watched_at'])))
-        header = '[COLOR blue]%s[/COLOR] %s [COLOR deeppink]%s[/COLOR]' % (item['action'], i18n('on'), watched_at)
+        header = '[COLOR deeppink]%s[/COLOR]' % (watched_at)
         label = '[%s] %s' % (header, label.decode('utf-8', 'ignore'))
         liz.setLabel(label)
         
@@ -1001,7 +1008,7 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
             scrapers = utils.relevant_scrapers(video_type)
             total = len(scrapers)
             for cls in scrapers:
-                if xbmc.abortRequested or pd.is_canceled(): return False
+                if pd.is_canceled(): return False
                 scraper = cls(max_timeout)
                 worker = utils.start_worker(q, utils.parallel_get_sources, [scraper, video])
                 utils.increment_setting('%s_try' % (cls.get_name()))
@@ -1018,7 +1025,7 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
                 try:
                     log_utils.log('Calling get with timeout: %s' % (timeout), xbmc.LOGDEBUG)
                     result = q.get(True, timeout)
-                    if xbmc.abortRequested or pd.is_canceled(): return False
+                    if pd.is_canceled(): return False
                     log_utils.log('Got %s Source Results' % (len(result['hosters'])), xbmc.LOGDEBUG)
                     worker_count -= 1
                     progress = ((total - worker_count) * 50 / total) + 50
@@ -1060,7 +1067,7 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
                 
             hosters = utils.filter_exclusions(hosters)
             hosters = utils.filter_quality(video_type, hosters)
-            if xbmc.abortRequested or pd.is_canceled(): return False
+            if pd.is_canceled(): return False
 
             hosters = apply_urlresolver(hosters)
 
@@ -1069,6 +1076,7 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
                     hosters = utils.filter_unknown_hosters(hosters)
                 SORT_KEYS['source'] = utils.make_source_sort_key()
                 hosters.sort(key=utils.get_sort_key)
+            if pd.is_canceled(): return False
     
         if not hosters:
             log_utils.log('No Usable Sources found for: |%s|' % (video))
@@ -1230,7 +1238,6 @@ def play_source(mode, hoster_url, direct, video_type, trakt_id, dialog, season='
         show_meta = {}
         if video_type == VIDEO_TYPES.EPISODE:
             path = kodi.get_setting('tv-download-folder')
-            # TODO: Find better filename if trakt metadata calls fail
             file_name = utils.filename_from_title(trakt_id, VIDEO_TYPES.TVSHOW)
             file_name = file_name % ('%02d' % int(season), '%02d' % int(episode))
 
@@ -1249,7 +1256,6 @@ def play_source(mode, hoster_url, direct, video_type, trakt_id, dialog, season='
             file_name = file_name % ('%02d' % int(season), '%02d' % int(episode))
         else:
             path = kodi.get_setting('movie-download-folder')
-            # TODO: Find better filename if trakt metadata calls fail
             file_name = utils.filename_from_title(trakt_id, video_type)
 
             movie_meta = trakt_api.get_movie_details(trakt_id)
@@ -1286,18 +1292,28 @@ def play_source(mode, hoster_url, direct, video_type, trakt_id, dialog, season='
     return True
 
 def auto_play_sources(hosters, video_type, trakt_id, dialog, season, episode):
-    for item in hosters:
-        if item['multi-part']:
-            continue
-
-        hoster_url = item['class'].resolve_link(item['url'])
-        log_utils.log('Auto Playing: %s' % (hoster_url), xbmc.LOGDEBUG)
-        if play_source(MODES.GET_SOURCES, hoster_url, item['direct'], video_type, trakt_id, dialog, season, episode):
-            return True
-    else:
-        msg = i18n('all_sources_failed')
-        log_utils.log(msg, xbmc.LOGERROR)
-        kodi.notify(msg=msg, duration=5000)
+    active = kodi.get_setting('show_pd') == 'true' or not dialog
+    total_hosters = len(hosters)
+    with gui_utils.ProgressDialog(i18n('trying_autoplay'), line1=' ', line2=' ', active=active) as pd:
+        prev = ''
+        for i, item in enumerate(hosters):
+            if item['multi-part']:
+                continue
+    
+            percent = i * 100 / total_hosters
+            current = i18n('trying_source') % (item['quality'], item['host'], item['class'].get_name())
+            pd.update(percent, current, prev)
+            if pd.is_canceled(): return False
+            hoster_url = item['class'].resolve_link(item['url'])
+            log_utils.log('Auto Playing: %s' % (hoster_url), xbmc.LOGDEBUG)
+            if play_source(MODES.GET_SOURCES, hoster_url, item['direct'], video_type, trakt_id, dialog, season, episode):
+                return True
+            if pd.is_canceled(): return False
+            prev = i18n('failed_source') % (item['quality'], item['host'], item['class'].get_name())
+        else:
+            msg = i18n('all_sources_failed')
+            log_utils.log(msg, xbmc.LOGERROR)
+            kodi.notify(msg=msg, duration=5000)
 
 def pick_source_dialog(hosters):
     for item in hosters:
@@ -1309,12 +1325,13 @@ def pick_source_dialog(hosters):
     index = dialog.select(i18n('choose_stream'), [item['label'] for item in hosters if 'label' in item])
     if index > -1:
         try:
-            if hosters[index]['url']:
-                hoster_url = hosters[index]['class'].resolve_link(hosters[index]['url'])
-                log_utils.log('Attempting to play url: %s as direct: %s' % (hoster_url, hosters[index]['direct']))
-                return hoster_url, hosters[index]['direct']
+            hoster = hosters[index]
+            if hoster['url']:
+                hoster_url = hoster['class'].resolve_link(hoster['url'])
+                log_utils.log('Attempting to play url: %s as direct: %s from: %s' % (hoster_url, hoster['direct'], hoster['class'].get_name()))
+                return hoster_url, hoster['direct']
         except Exception as e:
-            log_utils.log('Error (%s) while trying to resolve %s' % (str(e), hosters[index]['url']), xbmc.LOGERROR)
+            log_utils.log('Error (%s) while trying to resolve %s' % (str(e), hoster['url']), xbmc.LOGERROR)
 
     return None, None
 
