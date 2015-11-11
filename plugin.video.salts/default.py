@@ -25,6 +25,7 @@ import xbmcgui
 import xbmc
 import xbmcvfs
 import json
+import random
 import xml.etree.ElementTree as ET
 from Queue import Queue, Empty
 from salts_lib.db_utils import DB_Connection
@@ -204,14 +205,29 @@ def auto_conf():
         kodi.set_setting('sort4_field', '1')
         kodi.set_setting('sort5_field', '3')
         kodi.set_setting('sort6_field', '4')
-        sso = [
-            'Local', 'EasyNews', 'DirectDownload.tv', 'NoobRoom', 'OneClickTVShows', '123Movies', 'yify-streaming', 'stream-tv.co', 'streamallthis.is', 'SezonLukDizi', 'Dizimag', 'Dizilab',
-            'MovieFarsi', 'Shush.se', 'Dizigold', 'torba.se', 'IzlemeyeDeger', 'ReleaseBB', 'DDLValley', 'Rainierland', 'funtastic-vids', 'clickplay.to', 'IceFilms', 'ororo.tv', 'afdah.org',
-            'xmovies8', 'OnlineMoviesIs', 'OnlineMoviesPro', 'Flixanity', 'hdmz', 'niter.tv', 'yify.tv', 'pubfilm', 'movietv.to', 'beinmovie', 'popcorntimefree', 'tunemovie', 'MintMovies',
-            'MovieNight', 'cmz', 'Putlocker', 'viooz.ac', 'view47', 'MoviesHD', 'OnlineMovies', 'MoviesOnline7', 'wmo.ch', 'zumvo.com', 'mvsnap', 'alluc.com', 'MyVideoLinks.eu',
-            'OneClickWatch', 'RLSSource.net', 'TVRelease.Net', 'FilmStreaming.in', 'PrimeWire', 'WatchFree.to', 'CouchTunerV2', 'CouchTunerV1', 'Watch8Now', 'yshows', 'pftv', 'wso.ch',
-            'WatchSeries', 'SolarMovie', 'UFlix.org', 'ch131', 'MovieTube', 'ayyex', 'moviestorm.eu', 'vidics.ch', 'Movie4K', 'LosMovies', 'MerDB', 'iWatchOnline', '2movies', 'iStreamHD',
-            'afdah', 'filmikz.ch', 'movie25']
+        tiers = ['Local', 'EasyNews', 'DirectDownload.tv', 'NoobRoom',
+                 ['alluc.com', 'OneClickTVShows', '123Movies', 'niter.tv', 'ororo.tv', 'movietv.to'],
+                 ['tunemovie', 'afdah.org', 'xmovies8', 'beinmovie', 'torba.se', 'IzlemeyeDeger', 'Rainierland', 'zumvo.com'],
+                 ['SezonLukDizi', 'Dizimag', 'Dizilab', 'Dizigold', 'Shush.se', 'MovieFarsi'],
+                 ['DDLValley', 'ReleaseBB', 'MyVideoLinks.eu', 'OneClickWatch', 'RLSSource.net', 'TVRelease.Net'],
+                 ['IceFilms', 'PrimeWire', 'Flixanity', 'wso.ch', 'WatchSeries', 'UFlix.org', 'Putlocker'],
+                 ['funtastic-vids', 'WatchFree.to', 'pftv', 'streamallthis.is', 'Movie4K', 'afdah', 'SolarMovie', 'yify-streaming'],
+                 ['CouchTunerV2', 'CouchTunerV1', 'Watch8Now', 'yshows', '2movies', 'iWatchOnline', 'vidics.ch', 'pubfilm'],
+                 ['OnlineMoviesIs', 'OnlineMoviesPro', 'movie25', 'viooz.ac', 'view47', 'MoviesHD', 'wmo.ch', 'ayyex'],
+                 ['stream-tv.co', 'clickplay.to', 'MintMovies', 'MovieNight', 'cmz', 'ch131', 'filmikz.ch'],
+                 ['MovieTube', 'LosMovies', 'FilmStreaming.in', 'moviestorm.eu', 'MerDB'],
+                 'mvsnap', 'MoviesOnline7', 'yify.tv']
+
+        sso = []
+        random_sso = kodi.get_setting('random_sso') == 'true'
+        for tier in tiers:
+            if isinstance(tier, basestring):
+                sso.append(tier)
+            else:
+                if random_sso:
+                    random.shuffle(tier)
+                sso += tier
+                
         kodi.set_setting('source_sort_order', '|'.join(sso))
         kodi.notify(msg=i18n('auto_conf_complete'))
     
@@ -347,7 +363,7 @@ def scraper_settings():
             toggle_label = i18n('enable_scraper')
         else:
             toggle_label = i18n('disable_scraper')
-        label = '%s. %s (Success: %s%%)' % (i + 1, label, utils.calculate_success(cls.get_name()))
+        label = '%s. %s (%s Failures)' % (i + 1, label, kodi.get_setting('%s_last_results' % (cls.get_name())))
 
         menu_items = []
         if i > 0:
@@ -1002,6 +1018,7 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
         q = Queue()
         begin = time.time()
         fails = {}
+        counts = {}
         video = ScraperVideo(video_type, title, year, trakt_id, season, episode, ep_title, ep_airdate)
         active = kodi.get_setting('show_pd') == 'true' or not dialog
         with gui_utils.ProgressDialog(i18n('getting_sources'), utils.make_progress_msg(video_type, title, year, season, episode), '', '', active=active) as pd:
@@ -1011,20 +1028,20 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
                 if pd.is_canceled(): return False
                 scraper = cls(max_timeout)
                 worker = utils.start_worker(q, utils.parallel_get_sources, [scraper, video])
-                utils.increment_setting('%s_try' % (cls.get_name()))
                 worker_count += 1
                 progress = worker_count * 50 / total
                 pd.update(progress, line2=i18n('requested_sources_from') % (cls.get_name()))
                 workers.append(worker)
                 fails[cls.get_name()] = True
+                counts[cls.get_name()] = 0
         
             # collect results from workers
             hosters = []
-            got_timeouts = False
             while worker_count > 0:
                 try:
                     log_utils.log('Calling get with timeout: %s' % (timeout), xbmc.LOGDEBUG)
                     result = q.get(True, timeout)
+                    counts[result['name']] = len(result['hosters'])
                     if pd.is_canceled(): return False
                     log_utils.log('Got %s Source Results' % (len(result['hosters'])), xbmc.LOGDEBUG)
                     worker_count -= 1
@@ -1037,8 +1054,6 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
                         if timeout < 0: timeout = 0
                 except Empty:
                     log_utils.log('Get Sources Process Timeout', xbmc.LOGWARNING)
-                    utils.record_timeouts(fails)
-                    got_timeouts = True
                     break
         
                 if max_results > 0 and len(hosters) >= max_results:
@@ -1046,13 +1061,17 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
                     break
         
             else:
-                got_timeouts = False
                 log_utils.log('All source results received')
     
-            total = len(workers)
-            timeouts = len(fails)
+            utils.record_counts(counts)
             workers = utils.reap_workers(workers)
-            timeout_msg = i18n('scraper_timeout') % (timeouts, total) if got_timeouts and timeouts else ''
+            timeouts = len(fails)
+            if timeouts > 5:
+                timeout_msg = i18n('scraper_timeout') % (timeouts, len(workers))
+            elif timeouts > 0:
+                timeout_msg = i18n('scraper_timeout_list') % (', '.join([name for name in fails]))
+            else:
+                timeout_msg = ''
             if not hosters:
                 log_utils.log('No Sources found for: |%s|' % (video))
                 msg = i18n('no_sources')
@@ -1378,7 +1397,6 @@ def set_related_url(mode, video_type, title, year, trakt_id, season='', episode=
         for cls in scrapers:
             scraper = cls(max_timeout)
             worker = utils.start_worker(q, utils.parallel_get_url, [scraper, video])
-            utils.increment_setting('%s_try' % (cls.get_name()))
             related_list.append({'class': scraper, 'url': '', 'name': cls.get_name(), 'label': '[%s]' % (cls.get_name())})
             worker_count += 1
             progress = worker_count * 50 / total
@@ -1406,14 +1424,12 @@ def set_related_url(mode, video_type, title, year, trakt_id, season='', episode=
                     if timeout < 0: timeout = 0
             except Empty:
                 log_utils.log('Get Url Timeout', xbmc.LOGWARNING)
-                utils.record_timeouts(fails)
                 break
         else:
             log_utils.log('All source results received')
 
-    total = len(workers)
     timeouts = len(fails)
-    timeout_msg = i18n('scraper_timeout') % (timeouts, total) if timeouts else ''
+    timeout_msg = i18n('scraper_timeout') % (timeouts, len(workers)) if timeouts else ''
     if timeout_msg:
         kodi.notify(msg=timeout_msg, duration=5000)
         for related in related_list:
