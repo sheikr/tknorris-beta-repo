@@ -33,7 +33,8 @@ MODES = __enum(
     SETTINGS='settings', SHOW_VIEWS='show_views', BROWSE_VIEW='browse_view', BROWSE_URLS='browse_urls', DELETE_URL='delete_url', DOWNLOAD_SOURCE='download_source',
     DIRECT_DOWNLOAD='direct_download', POPULAR='popular', RECENT='recent', DELETE_RECENT='delete_recent', CLEAR_RECENT='clear_recent', GET_PIN='get_pin',
     AUTO_CONF='auto_config', CLEAR_SAVED='clear_saved', RESET_BASE_URL='reset_base_url', TOGGLE_TO_MENU='toggle_to_menu', LIKED_LISTS='liked_lists', MOSTS='mosts',
-    PLAYED='played', WATCHED='watched', COLLECTED='collected', SHOW_BOOKMARKS='show_bookmarks', DELETE_BOOKMARK='delete_bookmark', SHOW_HISTORY='show_history')
+    PLAYED='played', WATCHED='watched', COLLECTED='collected', SHOW_BOOKMARKS='show_bookmarks', DELETE_BOOKMARK='delete_bookmark', SHOW_HISTORY='show_history',
+    RESET_FAILS='reset_failures')
 SECTIONS = __enum(TV='TV', MOVIES='Movies')
 VIDEO_TYPES = __enum(TVSHOW='TV Show', MOVIE='Movie', EPISODE='Episode', SEASON='Season')
 CONTENT_TYPES = __enum(TVSHOWS='tvshows', MOVIES='movies', SEASONS='seasons', EPISODES='episodes')
@@ -70,7 +71,7 @@ DISABLE_SETTINGS = __enum(OFF='0', PROMPT='1', ON='2')
 BLOG_Q_MAP = {}
 BLOG_Q_MAP[QUALITIES.LOW] = [' CAM ', ' TS ', ' R6 ', 'CAMRIP']
 BLOG_Q_MAP[QUALITIES.MEDIUM] = ['-XVID', '-MP4', 'MEDIUM']
-BLOG_Q_MAP[QUALITIES.HIGH] = ['HDRIP', 'DVDRIP', 'BRRIP', 'BDRIP', '480P']
+BLOG_Q_MAP[QUALITIES.HIGH] = ['HDRIP', 'DVDRIP', 'BRRIP', 'BDRIP', '480P', ' HD ']
 BLOG_Q_MAP[QUALITIES.HD720] = ['720', 'HDTS']
 BLOG_Q_MAP[QUALITIES.HD1080] = ['1080']
 

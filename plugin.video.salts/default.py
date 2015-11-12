@@ -208,13 +208,13 @@ def auto_conf():
         tiers = ['Local', 'EasyNews', 'DirectDownload.tv', 'NoobRoom',
                  ['alluc.com', 'OneClickTVShows', '123Movies', 'niter.tv', 'ororo.tv', 'movietv.to'],
                  ['tunemovie', 'afdah.org', 'xmovies8', 'beinmovie', 'torba.se', 'IzlemeyeDeger', 'Rainierland', 'zumvo.com'],
-                 ['SezonLukDizi', 'Dizimag', 'Dizilab', 'Dizigold', 'Shush.se', 'MovieFarsi'],
+                 ['SezonLukDizi', 'Dizimag', 'Dizilab', 'Dizigold', 'Diziay', 'Shush.se', 'MovieFarsi'],
                  ['DDLValley', 'ReleaseBB', 'MyVideoLinks.eu', 'OneClickWatch', 'RLSSource.net', 'TVRelease.Net'],
                  ['IceFilms', 'PrimeWire', 'Flixanity', 'wso.ch', 'WatchSeries', 'UFlix.org', 'Putlocker'],
                  ['funtastic-vids', 'WatchFree.to', 'pftv', 'streamallthis.is', 'Movie4K', 'afdah', 'SolarMovie', 'yify-streaming'],
                  ['CouchTunerV2', 'CouchTunerV1', 'Watch8Now', 'yshows', '2movies', 'iWatchOnline', 'vidics.ch', 'pubfilm'],
-                 ['OnlineMoviesIs', 'OnlineMoviesPro', 'movie25', 'viooz.ac', 'view47', 'MoviesHD', 'wmo.ch', 'ayyex'],
-                 ['stream-tv.co', 'clickplay.to', 'MintMovies', 'MovieNight', 'cmz', 'ch131', 'filmikz.ch'],
+                 ['OnlineMoviesIs', 'OnlineMoviesPro', 'ViewMovies', 'movie25', 'viooz.ac', 'view47', 'MoviesHD', 'wmo.ch'],
+                 ['ayyex', 'stream-tv.co', 'clickplay.to', 'MintMovies', 'MovieNight', 'cmz', 'ch131', 'filmikz.ch'],
                  ['MovieTube', 'LosMovies', 'FilmStreaming.in', 'moviestorm.eu', 'MerDB'],
                  'mvsnap', 'MoviesOnline7', 'yify.tv']
 
@@ -363,7 +363,9 @@ def scraper_settings():
             toggle_label = i18n('enable_scraper')
         else:
             toggle_label = i18n('disable_scraper')
-        label = '%s. %s (%s Failures)' % (i + 1, label, kodi.get_setting('%s_last_results' % (cls.get_name())))
+        failures = kodi.get_setting('%s_last_results' % (cls.get_name()))
+        if failures == '-1': failures = 'N/A'
+        label = '%s. %s (Failures: %s)' % (i + 1, label, failures)
 
         menu_items = []
         if i > 0:
@@ -374,6 +376,8 @@ def scraper_settings():
             menu_items.append((i18n('move_down'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
         queries = {'mode': MODES.MOVE_TO, 'name': cls.get_name()}
         menu_items.append((i18n('move_to'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
+        queries = {'mode': MODES.RESET_FAILS, 'name': cls.get_name()}
+        menu_items.append((i18n('reset_fails'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
         queries = {'mode': MODES.TOGGLE_SCRAPER, 'name': cls.get_name()}
         menu_items.append((toggle_label, 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
 
@@ -381,6 +385,12 @@ def scraper_settings():
         kodi.create_item(queries, label, thumb=utils.art('scraper.png'), fanart=utils.art('fanart.jpg'), is_folder=False,
                          is_playable=False, menu_items=menu_items, replace_menu=True)
     kodi.end_of_directory()
+
+
+@url_dispatcher.register(MODES.RESET_FAILS, ['name'])
+def reset_fails(name):
+    kodi.set_setting('%s_last_results' % (name), '0')
+    xbmc.executebuiltin("XBMC.Container.Refresh")
 
 @url_dispatcher.register(MODES.MOVE_TO, ['name'])
 def move_to(name):
@@ -1053,25 +1063,25 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
                         timeout = max_timeout - (time.time() - begin)
                         if timeout < 0: timeout = 0
                 except Empty:
-                    log_utils.log('Get Sources Process Timeout', xbmc.LOGWARNING)
+                    log_utils.log('Get Sources Scraper Timeouts: %s' % (', '.join([name for name in fails])), log_utils.LOGWARNING)
                     break
-        
+
                 if max_results > 0 and len(hosters) >= max_results:
                     log_utils.log('Exceeded max results: %s/%s' % (max_results, len(hosters)))
                     break
-        
+
             else:
                 log_utils.log('All source results received')
     
             utils.record_counts(counts)
-            workers = utils.reap_workers(workers)
             timeouts = len(fails)
-            if timeouts > 5:
+            if timeouts > 4:
                 timeout_msg = i18n('scraper_timeout') % (timeouts, len(workers))
             elif timeouts > 0:
-                timeout_msg = i18n('scraper_timeout_list') % (', '.join([name for name in fails]))
+                timeout_msg = i18n('scraper_timeout_list') % ('/'.join([name for name in fails]))
             else:
                 timeout_msg = ''
+            workers = utils.reap_workers(workers)
             if not hosters:
                 log_utils.log('No Sources found for: |%s|' % (video))
                 msg = i18n('no_sources')
@@ -1080,7 +1090,7 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
                 return False
     
             if timeout_msg:
-                kodi.notify(msg=timeout_msg, duration=5000)
+                kodi.notify(msg=timeout_msg, duration=7500)
             
             pd.update(100, line2='Filtering Out Unusable Sources')
                 
