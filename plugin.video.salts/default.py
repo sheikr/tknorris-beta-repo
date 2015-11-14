@@ -205,9 +205,9 @@ def auto_conf():
         kodi.set_setting('sort4_field', '1')
         kodi.set_setting('sort5_field', '3')
         kodi.set_setting('sort6_field', '4')
-        tiers = ['Local', 'EasyNews', 'DirectDownload.tv', 'NoobRoom',
+        tiers = ['Local', 'Furk.net', 'EasyNews', 'DD.tv', 'NoobRoom',
                  ['alluc.com', 'OneClickTVShows', '123Movies', 'niter.tv', 'ororo.tv', 'movietv.to'],
-                 ['tunemovie', 'afdah.org', 'xmovies8', 'beinmovie', 'torba.se', 'IzlemeyeDeger', 'Rainierland', 'zumvo.com'],
+                 ['tunemovie', 'afdah.org', 'xmovies8', 'beinmovie', 'torba.se', 'IzlemeyeDeger', 'Rainierland', 'zumvo.com', 'MiraDeTodo'],
                  ['SezonLukDizi', 'Dizimag', 'Dizilab', 'Dizigold', 'Diziay', 'Shush.se', 'MovieFarsi'],
                  ['DDLValley', 'ReleaseBB', 'MyVideoLinks.eu', 'OneClickWatch', 'RLSSource.net', 'TVRelease.Net'],
                  ['IceFilms', 'PrimeWire', 'Flixanity', 'wso.ch', 'WatchSeries', 'UFlix.org', 'Putlocker'],
@@ -245,7 +245,7 @@ def browse_menu(section):
         if utils.menu_on('on_deck'): kodi.create_item({'mode': MODES.SHOW_BOOKMARKS, 'section': section}, i18n('trakt_on_deck'), thumb=utils.art('on_deck.png'), fanart=utils.art('fanart.jpg'))
         if utils.menu_on('recommended'): kodi.create_item({'mode': MODES.RECOMMEND, 'section': section}, i18n('recommended') % (section_label), thumb=utils.art('recommended.png'), fanart=utils.art('fanart.jpg'))
         if utils.menu_on('collection'): add_refresh_item({'mode': MODES.SHOW_COLLECTION, 'section': section}, i18n('my_collection') % (section_label2), utils.art('collection.png'), utils.art('fanart.jpg'))
-        if utils.menu_on('history'): kodi.create_item({'mode': MODES.SHOW_HISTORY, 'section': section}, i18n('watched_history'), thumb=utils.art('on_deck.png'), fanart=utils.art('fanart.jpg'))
+        if utils.menu_on('history'): kodi.create_item({'mode': MODES.SHOW_HISTORY, 'section': section}, i18n('watched_history'), thumb=utils.art('watched_history.png'), fanart=utils.art('fanart.jpg'))
         if utils.menu_on('favorites'): kodi.create_item({'mode': MODES.SHOW_FAVORITES, 'section': section}, i18n('my_favorites'), thumb=utils.art('my_favorites.png'), fanart=utils.art('fanart.jpg'))
         if utils.menu_on('subscriptions'): kodi.create_item({'mode': MODES.MANAGE_SUBS, 'section': section}, i18n('my_subscriptions'), thumb=utils.art('my_subscriptions.png'), fanart=utils.art('fanart.jpg'))
         if utils.menu_on('watchlist'): kodi.create_item({'mode': MODES.SHOW_WATCHLIST, 'section': section}, i18n('my_watchlist'), thumb=utils.art('my_watchlist.png'), fanart=utils.art('fanart.jpg'))
@@ -365,7 +365,7 @@ def scraper_settings():
             toggle_label = i18n('disable_scraper')
         failures = kodi.get_setting('%s_last_results' % (cls.get_name()))
         if failures == '-1': failures = 'N/A'
-        label = '%s. %s (Failures: %s)' % (i + 1, label, failures)
+        label = '%s. %s [FL: %s]' % (i + 1, label, failures)
 
         menu_items = []
         if i > 0:
@@ -1073,7 +1073,7 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
             else:
                 log_utils.log('All source results received')
     
-            utils.record_counts(counts)
+            utils.record_failures(fails, counts)
             timeouts = len(fails)
             if timeouts > 4:
                 timeout_msg = i18n('scraper_timeout') % (timeouts, len(workers))
@@ -1094,12 +1094,13 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
             
             pd.update(100, line2='Filtering Out Unusable Sources')
                 
+            if pd.is_canceled(): return False
             hosters = utils.filter_exclusions(hosters)
             hosters = utils.filter_quality(video_type, hosters)
+
             if pd.is_canceled(): return False
-
             hosters = apply_urlresolver(hosters)
-
+            
             if kodi.get_setting('enable_sort') == 'true':
                 if kodi.get_setting('filter-unknown') == 'true':
                     hosters = utils.filter_unknown_hosters(hosters)
@@ -1126,6 +1127,11 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
         utils.reap_workers(workers, None)
 
 def apply_urlresolver(hosters):
+    filter_unusable = kodi.get_setting('filter_unusable') == 'true'
+    show_debrid = kodi.get_setting('show_debrid') == 'true'
+    if not filter_unusable and not show_debrid:
+        return hosters
+    
     import urlresolver.plugnplay
     resolvers = urlresolver.plugnplay.man.implementors(urlresolver.UrlResolver)
     debrid_resolvers = [resolver for resolver in resolvers if resolver.isUniversal()]
@@ -1133,11 +1139,6 @@ def apply_urlresolver(hosters):
     debrid_hosts = {}
     unk_hosts = {}
     known_hosts = {}
-    filter_unusable = kodi.get_setting('filter_unusable') == 'true'
-    show_debrid = kodi.get_setting('show_debrid') == 'true'
-    if not filter_unusable and not show_debrid:
-        return hosters
-    
     for hoster in hosters:
         if 'direct' in hoster and hoster['direct'] == False and hoster['host']:
             host = hoster['host']
@@ -1438,6 +1439,7 @@ def set_related_url(mode, video_type, title, year, trakt_id, season='', episode=
         else:
             log_utils.log('All source results received')
 
+    utils.record_failures(fails)
     timeouts = len(fails)
     timeout_msg = i18n('scraper_timeout') % (timeouts, len(workers)) if timeouts else ''
     if timeout_msg:

@@ -930,6 +930,10 @@ msgctxt "#30228"
 msgid "Reset Failures"
 msgstr ""
 
+msgctxt "#30229"
+msgid "Maximum Source Results"
+msgstr ""
+
 msgctxt "#30500"
 msgid "Addon Theme"
 msgstr ""
@@ -1577,6 +1581,10 @@ msgstr ""
 
 #. Keep 4 spaces at the beginning of string 
 msgctxt "#30657"
-msgid "    Limit of Consecutive No Results"
+msgid "    Consecutive Failure Level Limit"
+msgstr ""
+
+msgctxt "#30658"
+msgid "Mute Notifications"
 msgstr ""
 
