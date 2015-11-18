@@ -459,7 +459,9 @@ def test_stream(hoster):
     log_utils.log('Testing Stream: %s from %s using Headers: %s' % (hoster['url'], hoster['class'].get_name(), headers), xbmc.LOGDEBUG)
     request = urllib2.Request(hoster['url'].split('|')[0], headers=headers)
 
-    #  set urlopen timeout to 10 seconds
+    opener = urllib2.build_opener(urllib2.HTTPRedirectHandler)
+    urllib2.install_opener(opener)
+    #  set urlopen timeout to 1 seconds
     try: http_code = urllib2.urlopen(request, timeout=1).getcode()
     except urllib2.URLError as e:
         # treat an unhandled url type as success
@@ -723,6 +725,16 @@ def format_episode_label(label, season, episode, srts):
 
 def get_force_title_list():
     filter_str = kodi.get_setting('force_title_match')
+    filter_list = filter_str.split('|') if filter_str else []
+    return filter_list
+
+def get_progress_skip_list():
+    filter_str = kodi.get_setting('progress_skip_cache')
+    filter_list = filter_str.split('|') if filter_str else []
+    return filter_list
+
+def get_force_progress_list():
+    filter_str = kodi.get_setting('force_include_progress')
     filter_list = filter_str.split('|') if filter_str else []
     return filter_list
 
