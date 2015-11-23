@@ -16,12 +16,13 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 import scraper
-import urllib
 import urlparse
 import re
 from salts_lib import kodi
 import time
 import json
+import base64
+import urllib
 from salts_lib import log_utils
 from salts_lib.trans_utils import i18n
 from salts_lib.constants import VIDEO_TYPES
@@ -29,7 +30,7 @@ from salts_lib.constants import FORCE_NO_MATCH
 from salts_lib.constants import QUALITIES
 from salts_lib.constants import XHR
 
-BASE_URL = 'http://www.flixanity.tv'
+BASE_URL = 'http://www.flixanity.is'
 EMBED_URL = '/ajax/embeds.php'
 
 class Flixanity_Scraper(scraper.Scraper):
@@ -72,9 +73,12 @@ class Flixanity_Scraper(scraper.Scraper):
                 self.__get_token()
                 
             if match and self.__token is not None:
-                data = {'action': action, 'idEl': match.group(1), 'token': self.__token}
+                elid = urllib.quote(base64.encodestring(str(int(time.time()))).strip())
+                data = {'action': action, 'idEl': match.group(1), 'token': self.__token, 'elid': elid}
                 ajax_url = urlparse.urljoin(self.base_url, EMBED_URL)
-                html = self._http_get(ajax_url, data=data, headers=XHR, cache_limit=.25)
+                headers = XHR
+                headers['Authorization'] = 'Bearer %s' % (self.__get_bearer())
+                html = self._http_get(ajax_url, data=data, headers=headers, cache_limit=0)
                 html = html.replace('\\"', '"').replace('\\/', '/')
                  
                 pattern = '<IFRAME\s+SRC="([^"]+)'
@@ -85,6 +89,7 @@ class Flixanity_Scraper(scraper.Scraper):
                         direct = True
                         quality = self._gv_get_quality(url)
                     else:
+                        if 'vk.com' in url and url.endswith('oid='): continue  # skip bad vk.com links
                         direct = False
                         host = urlparse.urlparse(url).hostname
                         quality = self._get_quality(video, host, QUALITIES.HD720)
@@ -162,7 +167,7 @@ class Flixanity_Scraper(scraper.Scraper):
                 log_utils.log('Unable to locate Flixanity token', log_utils.LOGWARNING)
     
     def __get_t(self, html=''):
-        if self.__t is None:
+        if not self.__t:
             if not html:
                 html = super(Flixanity_Scraper, self)._cached_http_get(self.base_url, self.base_url, self.timeout, cache_limit=0)
                 
@@ -171,12 +176,18 @@ class Flixanity_Scraper(scraper.Scraper):
                 self.__t = match.group(1)
             else:
                 log_utils.log('Unable to locate Flixanity t value', log_utils.LOGWARNING)
+                self.__t = ''
 
     def __login(self):
         url = urlparse.urljoin(self.base_url, '/ajax/login.php')
         self.__get_token()
         self.__get_t()
         data = {'username': self.username, 'password': self.password, 'action': 'login', 'token': self.__token, 't': self.__t}
-        html = super(Flixanity_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, cache_limit=0)
-        if html != '0':
-            raise Exception('flixanity login failed')
+        html = super(Flixanity_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, data=data, headers=XHR, cache_limit=0)
+        if html != '0': raise Exception('flixanity login failed')
+
+    def __get_bearer(self):
+        cj = self._set_cookies(self.base_url, {})
+        for cookie in cj:
+            if cookie.name == '__utmx':
+                return cookie.value
