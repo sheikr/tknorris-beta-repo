@@ -157,7 +157,6 @@ def make_list_item(label, meta):
     art = make_art(meta)
     listitem = xbmcgui.ListItem(label, iconImage=art['thumb'], thumbnailImage=art['thumb'])
     listitem.setProperty('fanart_image', art['fanart'])
-    listitem.setProperty('IsPlayable', 'false')
     try: listitem.setArt(art)
     except: pass
     if 'ids' in meta and 'imdb' in meta['ids']: listitem.setProperty('imdb_id', str(meta['ids']['imdb']))
@@ -324,15 +323,11 @@ def filter_exclusions(hosters):
     return filtered_hosters
 
 def filter_quality(video_type, hosters):
-    qual_filter = int(kodi.get_setting('%s_quality' % video_type))
-    if qual_filter == 0:
+    qual_filter = 5 - int(kodi.get_setting('%s_quality' % video_type))  # subtract to match Q_ORDER
+    if qual_filter == 5:
         return hosters
-    elif qual_filter == 1:
-        keep_qual = [QUALITIES.HD720, QUALITIES.HD1080]
     else:
-        keep_qual = [QUALITIES.LOW, QUALITIES.MEDIUM, QUALITIES.HIGH]
-
-    return [hoster for hoster in hosters if hoster['quality'] in keep_qual]
+        return [hoster for hoster in hosters if Q_ORDER[hoster['quality']] <= qual_filter]
 
 def get_sort_key(item):
     item_sort_key = []
@@ -424,7 +419,9 @@ def parallel_get_sources(q, scraper, video):
     if hosters is None: hosters = []
     if kodi.get_setting('filter_direct') == 'true':
         hosters = [hoster for hoster in hosters if not hoster['direct'] or test_stream(hoster)]
-    for hoster in hosters: hoster['host'] = hoster['host'].lower().strip()
+    for hoster in hosters:
+        if not hoster['direct']:
+            hoster['host'] = hoster['host'].lower().strip()
     log_utils.log('%s returned %s sources from %s' % (scraper.get_name(), len(hosters), worker), log_utils.LOGDEBUG)
     result = {'name': scraper.get_name(), 'hosters': hosters}
     q.put(result)
