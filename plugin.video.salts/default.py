@@ -26,7 +26,6 @@ import xbmc
 import xbmcvfs
 import json
 import random
-import xml.etree.ElementTree as ET
 from Queue import Queue, Empty
 from salts_lib.db_utils import DB_Connection
 from salts_lib.url_dispatcher import URL_Dispatcher
@@ -172,64 +171,12 @@ def get_pin():
 
 @url_dispatcher.register(MODES.RESET_BASE_URL)
 def reset_base_url():
-    xml_path = os.path.join(kodi.get_path(), 'resources', 'settings.xml')
-    tree = ET.parse(xml_path)
-    for category in tree.getroot().findall('category'):
-        if category.get('label').startswith('Scrapers '):
-            for setting in category.findall('setting'):
-                if setting.get('id').endswith('-base_url'):
-                    log_utils.log('Resetting: %s -> %s' % (setting.get('id'), setting.get('default')), xbmc.LOGDEBUG)
-                    kodi.set_setting(setting.get('id'), setting.get('default'))
-
+    utils.reset_base_url()
     kodi.notify(msg=i18n('reset_complete'))
 
 @url_dispatcher.register(MODES.AUTO_CONF)
 def auto_conf():
-    dialog = xbmcgui.Dialog()
-    line1 = i18n('auto_conf_line1')
-    line2 = i18n('auto_conf_line2')
-    line3 = i18n('auto_conf_line3')
-    ret = dialog.yesno('SALTS', line1, line2, line3, i18n('go_back'), i18n('continue'))
-    if ret:
-        kodi.set_setting('trakt_timeout', '60')
-        kodi.set_setting('calendar-day', '-1')
-        kodi.set_setting('source_timeout', '20')
-        kodi.set_setting('enable_sort', 'true')
-        kodi.set_setting('include_watchlist_next', 'true')
-        kodi.set_setting('filter_direct', 'true')
-        kodi.set_setting('filter_unusable', 'true')
-        kodi.set_setting('show_debrid', 'true')
-        kodi.set_setting('sort1_field', '2')
-        kodi.set_setting('sort2_field', '5')
-        kodi.set_setting('sort3_field', '6')
-        kodi.set_setting('sort4_field', '1')
-        kodi.set_setting('sort5_field', '3')
-        kodi.set_setting('sort6_field', '4')
-        tiers = ['Local', 'Furk.net', 'EasyNews', 'DD.tv', 'NoobRoom',
-                 ['alluc.com', 'OneClickTVShows', '123Movies', 'niter.tv', 'ororo.tv', 'movietv.to'],
-                 ['tunemovie', 'afdah.org', 'xmovies8', 'xmovies8.v2', 'beinmovie', 'torba.se', 'IzlemeyeDeger', 'Rainierland', 'zumvo.com', 'MiraDeTodo'],
-                 ['SezonLukDizi', 'Dizimag', 'Dizilab', 'Dizigold', 'Diziay', 'Dizipas', 'Shush.se', 'MovieFarsi'],
-                 ['DDLValley', 'ReleaseBB', 'MyVideoLinks.eu', 'OneClickWatch', 'RLSSource.net'],
-                 ['IceFilms', 'PrimeWire', 'Flixanity', 'wso.ch', 'WatchSeries', 'UFlix.org', 'Putlocker', 'MovieHut'],
-                 ['funtastic-vids', 'WatchFree.to', 'pftv', 'streamallthis.is', 'Movie4K', 'afdah', 'SolarMovie', 'yify-streaming'],
-                 ['CouchTunerV2', 'CouchTunerV1', 'Watch8Now', 'yshows', '2movies', 'iWatchOnline', 'vidics.ch', 'pubfilm'],
-                 ['OnlineMoviesIs', 'OnlineMoviesPro', 'ViewMovies', 'movie25', 'viooz.ac', 'view47', 'MoviesHD', 'wmo.ch'],
-                 ['ayyex', 'stream-tv.co', 'clickplay.to', 'MintMovies', 'MovieNight', 'cmz', 'ch131', 'filmikz.ch'],
-                 ['MovieTube', 'LosMovies', 'FilmStreaming.in', 'moviestorm.eu', 'MerDB'],
-                 'MoviesOnline7']
-
-        sso = []
-        random_sso = kodi.get_setting('random_sso') == 'true'
-        for tier in tiers:
-            if isinstance(tier, basestring):
-                sso.append(tier)
-            else:
-                if random_sso:
-                    random.shuffle(tier)
-                sso += tier
-                
-        kodi.set_setting('source_sort_order', '|'.join(sso))
-        kodi.notify(msg=i18n('auto_conf_complete'))
+    gui_utils.do_auto_config()
     
 @url_dispatcher.register(MODES.BROWSE, ['section'])
 def browse_menu(section):
@@ -355,7 +302,9 @@ def scraper_settings():
     else:
         label = '**%s**' % (i18n('disable_all_scrapers'))
     kodi.create_item({'mode': MODES.TOGGLE_ALL}, label, thumb=utils.art('scraper.png'), fanart=utils.art('fanart.jpg'))
-
+    COLORS = ['green', 'limegreen', 'greenyellow', 'yellowgreen', 'yellow', 'orange', 'darkorange', 'orangered', 'red', 'darkred']
+    fail_limit = int(kodi.get_setting('disable-limit'))
+    
     for i, cls in enumerate(scrapers):
         label = '%s (Provides: %s)' % (cls.get_name(), str(list(cls.provides())).replace("'", ""))
         if not utils.scraper_enabled(cls.get_name()):
@@ -364,8 +313,16 @@ def scraper_settings():
         else:
             toggle_label = i18n('disable_scraper')
         failures = kodi.get_setting('%s_last_results' % (cls.get_name()))
-        if failures == '-1': failures = 'N/A'
-        label = '%s. %s [FL: %s]' % (i + 1, label, failures)
+        if not failures:
+            failures = 0
+            
+        if failures == '-1':
+            failures = 'N/A'
+            index = 0
+        else:
+            index = min([(int(failures) * (len(COLORS) - 1) / fail_limit), len(COLORS) - 1])
+            
+        label = '%s. %s [COLOR %s][FL: %s][/COLOR]:' % (i + 1, label, COLORS[index], failures)
 
         menu_items = []
         if i > 0:
@@ -1034,6 +991,7 @@ def browse_episodes(trakt_id, season):
 @url_dispatcher.register(MODES.GET_SOURCES, ['mode', 'video_type', 'title', 'year', 'trakt_id'], ['season', 'episode', 'ep_title', 'ep_airdate', 'dialog'])
 @url_dispatcher.register(MODES.SELECT_SOURCE, ['mode', 'video_type', 'title', 'year', 'trakt_id'], ['season', 'episode', 'ep_title', 'ep_airdate', 'dialog'])
 @url_dispatcher.register(MODES.DOWNLOAD_SOURCE, ['mode', 'video_type', 'title', 'year', 'trakt_id'], ['season', 'episode', 'ep_title', 'ep_airdate', 'dialog'])
+@url_dispatcher.register(MODES.AUTOPLAY, ['mode', 'video_type', 'title', 'year', 'trakt_id'], ['season', 'episode', 'ep_title', 'ep_airdate', 'dialog'])
 def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', ep_title='', ep_airdate='', dialog=None):
     timeout = max_timeout = int(kodi.get_setting('source_timeout'))
     if max_timeout == 0: timeout = None
@@ -1046,7 +1004,7 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
         fails = {}
         counts = {}
         video = ScraperVideo(video_type, title, year, trakt_id, season, episode, ep_title, ep_airdate)
-        active = kodi.get_setting('show_pd') == 'true' or not dialog
+        active = kodi.get_setting('show_pd') == 'true' or (not dialog and not utils.from_playlist())
         with gui_utils.ProgressDialog(i18n('getting_sources'), utils.make_progress_msg(video_type, title, year, season, episode), '', '', active=active) as pd:
             scrapers = utils.relevant_scrapers(video_type)
             total = len(scrapers)
@@ -1108,7 +1066,7 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
             if timeout_msg:
                 kodi.notify(msg=timeout_msg, duration=7500)
             
-            pd.update(100, line2='Filtering Out Unusable Sources')
+            pd.update(100, line2=i18n('applying_source_filters'))
                 
             if pd.is_canceled(): return False
             hosters = utils.filter_exclusions(hosters)
@@ -1131,7 +1089,7 @@ def get_sources(mode, video_type, title, year, trakt_id, season='', episode='', 
             return False
 
         pseudo_tv = xbmcgui.Window(10000).getProperty('PseudoTVRunning').lower()
-        if pseudo_tv == 'true' or (mode == MODES.GET_SOURCES and kodi.get_setting('auto-play') == 'true'):
+        if pseudo_tv == 'true' or (mode == MODES.GET_SOURCES and kodi.get_setting('auto-play') == 'true') or mode == MODES.AUTOPLAY:
             auto_play_sources(hosters, video_type, trakt_id, dialog, season, episode)
         else:
             if dialog or (dialog is None and kodi.get_setting('source-win') == 'Dialog'):
@@ -1226,12 +1184,10 @@ def download_subtitles(language, title, year, season, episode):
         return
 
     subs = srt_scraper.get_episode_subtitles(language, tvshow_id, season, episode)
-    sub_labels = []
-    for sub in subs:
-        sub_labels.append(utils.format_sub_label(sub))
+    sub_labels = [utils.format_sub_label(sub) for sub in subs]
 
     index = 0
-    if len(sub_labels) > 1:
+    if len(sub_labels) > 1 and kodi.get_setting('subtitle-autopick') == 'false':
         dialog = xbmcgui.Dialog()
         index = dialog.select(i18n('choose_subtitle'), sub_labels)
 
@@ -1331,7 +1287,7 @@ def play_source(mode, hoster_url, direct, video_type, trakt_id, dialog, season='
     except: pass
     listitem.setPath(stream_url)
     listitem.setInfo('video', info)
-    if dialog:
+    if dialog or utils.from_playlist():
         xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, listitem)
     else:
         xbmc.Player().play(stream_url, listitem)
@@ -2174,14 +2130,20 @@ def make_episode_item(show, episode, show_subs=True, menu_items=None):
                'ep_title': episode['title'], 'ep_airdate': air_date, 'trakt_id': show['ids']['trakt']}
     liz_url = kodi.get_plugin_url(queries)
 
+    queries = {'video_type': VIDEO_TYPES.EPISODE, 'title': show['title'], 'year': show['year'], 'season': episode['season'], 'episode': episode['number'],
+               'ep_title': episode['title'], 'ep_airdate': air_date, 'trakt_id': show['ids']['trakt']}
     if kodi.get_setting('auto-play') == 'true':
-        queries = {'mode': MODES.SELECT_SOURCE, 'video_type': VIDEO_TYPES.EPISODE, 'title': show['title'], 'year': show['year'], 'season': episode['season'], 'episode': episode['number'],
-                   'ep_title': episode['title'], 'ep_airdate': air_date, 'trakt_id': show['ids']['trakt']}
+        queries['mode'] = MODES.SELECT_SOURCE
+        label = i18n('select_source')
         if kodi.get_setting('source-win') == 'Dialog':
             runstring = 'RunPlugin(%s)' % kodi.get_plugin_url(queries)
         else:
             runstring = 'Container.Update(%s)' % kodi.get_plugin_url(queries)
-        menu_items.insert(0, (i18n('select_source'), runstring),)
+    else:
+        queries['mode'] = MODES.AUTOPLAY
+        runstring = 'RunPlugin(%s)' % kodi.get_plugin_url(queries)
+        label = i18n('auto-play')
+    menu_items.insert(0, (label, runstring),)
 
     if kodi.get_setting('show_download') == 'true':
         queries = {'mode': MODES.DOWNLOAD_SOURCE, 'video_type': VIDEO_TYPES.EPISODE, 'title': show['title'], 'year': show['year'], 'season': episode['season'], 'episode': episode['number'],
@@ -2192,7 +2154,7 @@ def make_episode_item(show, episode, show_subs=True, menu_items=None):
             runstring = 'Container.Update(%s)' % kodi.get_plugin_url(queries)
         menu_items.append((i18n('download_source'), runstring),)
 
-    if menu_items and menu_items[0][0] == 'Select Source':
+    if menu_items and menu_items[0][0] in [i18n('select_source'), i18n('auto-play')]:
         menu_items.append((i18n('show_information'), 'XBMC.Action(Info)'),)
     else:
         menu_items.insert(0, (i18n('show_information'), 'XBMC.Action(Info)'),)
@@ -2257,13 +2219,20 @@ def make_item(section_params, show, menu_items=None):
     liz.setInfo('video', info)
     liz_url = kodi.get_plugin_url(queries)
 
-    if section_params['next_mode'] == MODES.GET_SOURCES and kodi.get_setting('auto-play') == 'true':
-        queries = {'mode': MODES.SELECT_SOURCE, 'video_type': section_params['video_type'], 'title': show['title'], 'year': show['year'], 'trakt_id': trakt_id}
-        if kodi.get_setting('source-win') == 'Dialog':
-            runstring = 'RunPlugin(%s)' % kodi.get_plugin_url(queries)
+    queries = {'video_type': section_params['video_type'], 'title': show['title'], 'year': show['year'], 'trakt_id': trakt_id}
+    if section_params['next_mode'] == MODES.GET_SOURCES:
+        if kodi.get_setting('auto-play') == 'true':
+            queries['mode'] = MODES.SELECT_SOURCE
+            label = i18n('select_source')
+            if kodi.get_setting('source-win') == 'Dialog':
+                runstring = 'RunPlugin(%s)' % kodi.get_plugin_url(queries)
+            else:
+                runstring = 'Container.Update(%s)' % kodi.get_plugin_url(queries)
         else:
-            runstring = 'Container.Update(%s)' % kodi.get_plugin_url(queries)
-        menu_items.insert(0, (i18n('select_source'), runstring),)
+            queries['mode'] = MODES.AUTOPLAY
+            runstring = 'RunPlugin(%s)' % kodi.get_plugin_url(queries)
+            label = i18n('auto-play')
+        menu_items.insert(0, (label, runstring),)
 
     if section_params['next_mode'] == MODES.GET_SOURCES and kodi.get_setting('show_download') == 'true':
         queries = {'mode': MODES.DOWNLOAD_SOURCE, 'video_type': section_params['video_type'], 'title': show['title'], 'year': show['year'], 'trakt_id': trakt_id}
@@ -2341,7 +2310,7 @@ def make_item(section_params, show, menu_items=None):
         menu_items.insert(-3, (i18n('play_trailer'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
 
     if len(menu_items) < 10:
-        menu_items.insert(0, (i18n('show_information'), 'XBMC.Action(Info)'),)
+        menu_items.insert(1, (i18n('show_information'), 'XBMC.Action(Info)'),)
 
     liz.addContextMenuItems(menu_items, replaceItems=True)
 
