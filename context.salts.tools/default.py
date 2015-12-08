@@ -23,18 +23,18 @@ import xbmcgui
 from lib import log_utils
 from lib import kodi
 
+addon = xbmcaddon.Addon('plugin.video.salts')
+
 def __enum(**enums):
     return type('Enum', (), enums)
 
 MODES = __enum(GET_SOURCES='get_sources', SET_URL_MANUAL='set_url_manual', SET_URL_SEARCH='set_url_search', SELECT_SOURCE='select_source', DOWNLOAD_SOURCE='download_source',
-               ADD_TO_LIST='add_to_list', SCRAPERS='scrapers', SEARCH='search')
+               ADD_TO_LIST='add_to_list', SCRAPERS='scrapers', SEARCH='search', AUTOPLAY='autoplay')
 VIDEO_TYPES = __enum(TVSHOW='TV Show', MOVIE='Movie', EPISODE='Episode', SEASON='Season')
 SECTIONS = __enum(TV='TV', MOVIES='Movies')
 
 def toggle_auto_play():
-    addon = xbmcaddon.Addon('plugin.video.salts')
-    auto_play = addon.getSetting('auto-play')
-    if auto_play == 'true':
+    if __autoplay_enabled():
         addon.setSetting('auto-play', 'false')
         kodi.notify(msg='SALTS Auto-Play Turned Off')
     else:
@@ -45,7 +45,7 @@ def source_action(mode, li_path):
     try:
         lines = xbmcvfs.File(li_path).read()
         lines = lines.replace('mode=%s' % (MODES.GET_SOURCES), 'mode=%s' % (mode))
-        if mode == MODES.SELECT_SOURCE:
+        if mode in [MODES.SELECT_SOURCE, MODES.AUTOPLAY]:
             builtin = 'PlayMedia'
         else:
             builtin = 'RunPlugin'
@@ -93,6 +93,10 @@ def search(section):
     runstring = 'RunPlugin(plugin://plugin.video.salts%s)' % (kodi.get_plugin_url(queries))
     xbmc.executebuiltin(runstring)
     
+def __autoplay_enabled():
+    auto_play = addon.getSetting('auto-play')
+    return auto_play == 'true'
+    
 def __get_media_type():
     if xbmc.getCondVisibility('Container.Content(tvshows)'):
         return VIDEO_TYPES.TVSHOW
@@ -123,9 +127,16 @@ def __is_salts_listitem(li_path):
     return True
 
 def __get_tools(path):
+    if __autoplay_enabled():
+        action = MODES.SELECT_SOURCE
+        label = 'Select Source'
+    else:
+        action = MODES.AUTOPLAY
+        label = 'Auto-Play'
+        
     tools = [
         ((VIDEO_TYPES.MOVIE, VIDEO_TYPES.TVSHOW, VIDEO_TYPES.SEASON, VIDEO_TYPES.EPISODE), 'Toggle Auto-Play', toggle_auto_play, []),
-        ((VIDEO_TYPES.MOVIE, VIDEO_TYPES.EPISODE), 'Select Source', source_action, [MODES.SELECT_SOURCE, path]),
+        ((VIDEO_TYPES.MOVIE, VIDEO_TYPES.EPISODE), label, source_action, [action, path]),
         ((VIDEO_TYPES.MOVIE, VIDEO_TYPES.EPISODE), 'Download Source', source_action, [MODES.DOWNLOAD_SOURCE, path]),
         ((VIDEO_TYPES.MOVIE, VIDEO_TYPES.TVSHOW), 'Add to List', add_to_list, []),
         ((VIDEO_TYPES.MOVIE), 'Movie Search', search, [SECTIONS.MOVIES]),

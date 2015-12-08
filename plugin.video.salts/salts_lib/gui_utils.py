@@ -122,7 +122,7 @@ def get_pin():
     del dialog
 
 class ProgressDialog(object):
-    def __init__(self, heading, line1=None, line2=None, line3=None, active=True):
+    def __init__(self, heading, line1='', line2='', line3='', active=True):
         if active:
             self.pd = xbmcgui.DialogProgress()
             self.pd.create(heading, line1, line2, line3)
@@ -144,7 +144,7 @@ class ProgressDialog(object):
         else:
             return False
         
-    def update(self, percent, line1=None, line2=None, line3=None):
+    def update(self, percent, line1='', line2='', line3=''):
         if self.pd is not None:
             self.pd.update(percent, line1, line2, line3)
 
@@ -177,7 +177,7 @@ def perform_auto_conf(responses):
                  ['alluc.com', 'OneClickTVShows', 'CyberReel', '123Movies', 'niter.tv', 'ororo.tv', 'movietv.to', 'StreamLord'],
                  ['tunemovie', 'afdah.org', 'xmovies8', 'xmovies8.v2', 'beinmovie', 'torba.se', 'IzlemeyeDeger', 'Rainierland', 'zumvo.com', 'MiraDeTodo'],
                  ['SezonLukDizi', 'Dizimag', 'Dizilab', 'Dizigold', 'Diziay', 'Dizipas', 'Shush.se', 'MovieFarsi'],
-                 ['DDLValley', 'ReleaseBB', 'MyVideoLinks.eu', 'OneClickWatch', 'RLSSource.net'],
+                 ['DDLValley', 'ReleaseBB', 'MyVideoLinks.eu', 'OneClickWatch', 'RLSSource.net', 'TVRelease.Net'],
                  ['IceFilms', 'PrimeWire', 'Flixanity', 'wso.ch', 'WatchSeries', 'UFlix.org', 'Putlocker', 'MovieHut'],
                  ['funtastic-vids', 'WatchFree.to', 'pftv', 'streamallthis.is', 'Movie4K', 'afdah', 'SolarMovie', 'yify-streaming'],
                  ['CouchTunerV2', 'CouchTunerV1', 'Watch8Now', 'yshows', '2movies', 'iWatchOnline', 'vidics.ch', 'pubfilm'],

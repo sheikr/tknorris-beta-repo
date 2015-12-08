@@ -14,7 +14,7 @@ __all__ = ['scraper', 'local_scraper', 'pw_scraper', 'uflix_scraper', 'watchseri
            'noobroom_scraper', 'solar_scraper', 'directdl_scraper', 'movietv_scraper', 'moviesonline7_scraper', 'streamallthis_scraper', 'afdah_scraper', 'torbase_scraper',
            'streamtv_scraper', 'moviestorm_scraper', 'wmo_scraper', 'zumvo_scraper', 'wso_scraper', 'ch131_scraper', 'watchfree_scraper', 'streamlord_scraper',
            'pftv_scraper', 'flixanity_scraper', 'cmz_scraper', 'movienight_scraper', 'alluc_scraper', 'afdahorg_scraper', 'xmovies8_scraper', 'yifystreaming_scraper',
-           'mintmovies_scraper', 'shush_proxy', 'pubfilm_scraper', 'rlssource_scraper', 'couchtunerv1_scraper', 'couchtunerv2_scraper', 'ddlvalley_scraper',
+           'mintmovies_scraper', 'shush_proxy', 'pubfilm_scraper', 'rlssource_scraper', 'couchtunerv1_scraper', 'couchtunerv2_scraper', 'ddlvalley_scraper', 'tvrelease_scraper',
            'tunemovie_scraper', 'watch8now_scraper', 'dizilab_scraper', 'beinmovie_scraper', 'dizimag_scraper', 'ayyex_scraper', 'moviefarsi_scraper', 'oneclicktvshows_scraper',
            'dizigold_scraper', 'onlinemoviespro_scraper', 'onlinemoviesis_scraper', '123movies_scraper', 'rainierland_scraper', 'rlsbb_scraper', 'sezonlukdizi_scraper',
            'izlemeyedeger_scraper', 'movietube_scraper', 'funtastic_scraper', 'putlocker_scraper', 'yshows_scraper', 'diziay_scraper', 'viewmovies_scraper', 'furk_scraper',
@@ -26,11 +26,13 @@ class ScraperVideo:
     def __init__(self, video_type, title, year, trakt_id, season='', episode='', ep_title='', ep_airdate=''):
         assert(video_type in (VIDEO_TYPES.__dict__[k] for k in VIDEO_TYPES.__dict__ if not k.startswith('__')))
         self.video_type = video_type
-        self.title = title
+        if isinstance(title, unicode): self.title = title.encode('utf-8')
+        else: self.title = title
         self.year = str(year)
         self.season = season
         self.episode = episode
-        self.ep_title = ep_title
+        if isinstance(ep_title, unicode): self.ep_title = ep_title.encode('utf-8')
+        else: self.ep_title = ep_title
         self.trakt_id = trakt_id
         self.ep_airdate = None
         if ep_airdate:
