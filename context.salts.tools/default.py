@@ -16,6 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 import sys
+import re
 import xbmc
 import xbmcaddon
 import xbmcvfs
@@ -56,6 +57,7 @@ def source_action(mode, li_path):
 
 def set_related_url(mode):
     title = xbmc.getInfoLabel('ListItem.Title')
+    title = re.sub(' \(\d{4}\)$', '', title)
     year = xbmc.getInfoLabel('ListItem.Year')
     queries = {'mode': mode, 'video_type': __get_media_type(), 'title': title, 'year': year, 'trakt_id': 0}  # trakt_id set to 0, not used and don't have it
     runstring = 'RunPlugin(plugin://plugin.video.salts%s)' % (kodi.get_plugin_url(queries))
