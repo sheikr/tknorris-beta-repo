@@ -258,12 +258,10 @@ def force_refresh(refresh_mode, section=None, slug=None, username=None):
         trakt_api.get_calendar(start_date, 8, cached=False)
     elif refresh_mode == MODES.PREMIERES:
         trakt_api.get_premieres(start_date, 8, cached=False)
-    elif refresh_mode == MODES.FRIENDS_EPISODE:
-        trakt_api.get_friends_activity(section, True)
-    elif refresh_mode == MODES.FRIENDS:
-        trakt_api.get_friends_activity(section)
     elif refresh_mode == MODES.SHOW_LIST:
-        trakt_api.show_list(slug, section, username, cached=False)
+        try: trakt_api.show_list(slug, section, username, cached=False)
+        except (TraktNotFoundError, TraktAuthError) as e:
+            log_utils.log('List Access Failure: %s' % (e), log_utils.LOGWARNING)
     elif refresh_mode == MODES.LIKED_LISTS:
         trakt_api.get_liked_lists(cached=False)
     else:
@@ -540,26 +538,21 @@ def browse_other_lists(section):
 
 def add_other_list_item(mode, section, other_list, total_items=0):
     try:
-        if TOKEN:
-            auth = True
-        else:
-            auth = False
-        header = trakt_api.get_list_header(other_list[1], other_list[0], auth)
-    except (TraktNotFoundError, TraktAuthError):
+        header = trakt_api.get_list_header(other_list[1], other_list[0], bool(TOKEN))
+    except (TraktNotFoundError, TraktAuthError) as e:
+        log_utils.log('List Access Failure: %s' % (e), log_utils.LOGWARNING)
         header = None
 
     if header:
-        found = True
         if len(other_list) >= 3 and other_list[2]:
             name = other_list[2]
         else:
             name = header['name']
     else:
         name = other_list[1]
-        found = False
 
     menu_items = []
-    if found:
+    if header:
         queries = {'mode': MODES.FORCE_REFRESH, 'refresh_mode': MODES.SHOW_LIST, 'section': section, 'slug': other_list[1], 'username': other_list[0]}
         menu_items.append((i18n('force_refresh'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
         queries = {'mode': MODES.COPY_LIST, 'section': section, 'slug': other_list[1], 'username': other_list[0]}
@@ -583,7 +576,7 @@ def add_other_list_item(mode, section, other_list, total_items=0):
         queries = {'mode': MODES.RENAME_LIST, 'section': section, 'slug': other_list[1], 'username': other_list[0], 'name': name}
         menu_items.append((i18n('rename_list'), 'RunPlugin(%s)' % (kodi.get_plugin_url(queries))),)
 
-    if found:
+    if header:
         queries = {'mode': MODES.SHOW_LIST, 'section': section, 'slug': other_list[1], 'username': other_list[0]}
     else:
         queries = {'mode': MODES.OTHER_LISTS, 'section': section}
@@ -660,11 +653,7 @@ def show_list(section, slug, username=None):
             
     else:
         try:
-            if TOKEN:
-                auth = True
-            else:
-                auth = False
-            items = trakt_api.show_list(slug, section, username, auth=auth)
+            items = trakt_api.show_list(slug, section, username, auth=bool(TOKEN))
         except TraktNotFoundError:
             msg = i18n('list_not_exist') % (slug)
             kodi.notify(msg=msg, duration=5000)
@@ -1428,14 +1417,16 @@ def set_related_url(mode, video_type, title, year, trakt_id, season='', episode=
             index = dialog.select(i18n('url_to_change') % (video_type), [related['label'] for related in related_list])
             if index > -1:
                 if mode == MODES.SET_URL_MANUAL:
+                    related = related_list[index]
                     keyboard = xbmc.Keyboard()
-                    keyboard.setHeading(i18n('rel_url_at') % (video_type, related_list[index]['name']))
-                    keyboard.setDefault(related_list[index]['url'])
+                    keyboard.setHeading(i18n('rel_url_at') % (video_type, related['name']))
+                    keyboard.setDefault(related['url'])
                     keyboard.doModal()
                     if keyboard.isConfirmed():
                         new_url = keyboard.getText()
-                        utils.update_url(video_type, title, year, related_list[index]['name'], related_list[index]['url'], new_url, season, episode)
-                        kodi.notify(msg=i18n('rel_url_set') % (related_list[index]['name']), duration=5000)
+                        utils.update_url(video_type, title, year, related['name'], related['url'], new_url, season, episode)
+                        kodi.notify(msg=i18n('rel_url_set') % (related['name']), duration=5000)
+                        related['label'] = '[%s] %s' % (related['name'], new_url)
                 elif mode == MODES.SET_URL_SEARCH:
                     temp_title = title
                     temp_year = year
@@ -1458,9 +1449,13 @@ def set_related_url(mode, video_type, title, year, trakt_id, season='', episode=
                                 keyboard.setDefault(text)
                                 keyboard.doModal()
                                 if keyboard.isConfirmed():
-                                    match = re.match('([^\(]+)\s*\(*(\d{4})?\)*', keyboard.getText())
-                                    temp_title = match.group(1).strip()
-                                    temp_year = match.group(2) if match.group(2) else ''
+                                    match = re.match('(.*?)\(?(\d{4})\)?', keyboard.getText())
+                                    if match:
+                                        temp_title, temp_year = match.groups()
+                                        temp_title = temp_title.strip()
+                                    else:
+                                        temp_title = keyboard.getText()
+                                        temp_year = ''
                             elif results_index >= 1:
                                 related = related_list[index]
                                 if results_index == 1:
