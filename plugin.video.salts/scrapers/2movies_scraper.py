@@ -33,6 +33,7 @@ from salts_lib.constants import RAND_UAS
 
 BASE_URL = 'http://twomovies.us'
 AJAX_URL = '/Xajax/aj0001'
+USER_AGENT = 'SALTS for Kodi/%s' % (kodi.get_version()) 
 
 class TwoMovies_Scraper(scraper.Scraper):
     base_url = BASE_URL
@@ -47,7 +48,7 @@ class TwoMovies_Scraper(scraper.Scraper):
 
     @classmethod
     def get_name(cls):
-        return '2movies'
+        return 'TwoMovies.us'
 
     def resolve_link(self, link):
         url = urlparse.urljoin(self.base_url, link)
@@ -125,7 +126,7 @@ class TwoMovies_Scraper(scraper.Scraper):
     def _http_get(self, url, cookies=None, data=None, multipart_data=None, headers=None, allow_redirect=True, cache_limit=8):
         if headers is None: headers = {}
         if 'Referer' not in headers: headers['Referer'] = urlparse.urljoin(self.base_url, '/')
-        headers.update({'User-Agent': self.__randomize_ua()})
+        headers.update({'User-Agent': USER_AGENT})
         return super(TwoMovies_Scraper, self)._http_get(url, cookies=cookies, data=data, multipart_data=multipart_data, headers=headers, allow_redirect=allow_redirect, cache_limit=cache_limit)
 
     def __randomize_ua(self):

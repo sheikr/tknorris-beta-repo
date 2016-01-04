@@ -151,10 +151,10 @@
          <setting id="123Movies-base_url" type="text" label="    Base Url" default="http://123movies.to" visible="eq(-1,true)"/>
          <setting id="123Movies-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
          <setting id="123Movies_last_results" type="number" default="0" visible="false"/>
-         <setting id="2movies-enable" type="bool" label="2movies Enabled" default="true" visible="true"/>
-         <setting id="2movies-base_url" type="text" label="    Base Url" default="http://twomovies.us" visible="eq(-1,true)"/>
-         <setting id="2movies-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
-         <setting id="2movies_last_results" type="number" default="0" visible="false"/>
+         <setting id="9Movies-enable" type="bool" label="9Movies Enabled" default="true" visible="true"/>
+         <setting id="9Movies-base_url" type="text" label="    Base Url" default="http://9movies.to" visible="eq(-1,true)"/>
+         <setting id="9Movies-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
+         <setting id="9Movies_last_results" type="number" default="0" visible="false"/>
          <setting id="afdah-enable" type="bool" label="afdah Enabled" default="true" visible="true"/>
          <setting id="afdah-base_url" type="text" label="    Base Url" default="http://afdah.tv" visible="eq(-1,true)"/>
          <setting id="afdah-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
@@ -306,7 +306,7 @@
          <setting id="Movie4K-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
          <setting id="Movie4K_last_results" type="number" default="0" visible="false"/>
          <setting id="MovieFarsi-enable" type="bool" label="MovieFarsi Enabled" default="true" visible="true"/>
-         <setting id="MovieFarsi-base_url" type="text" label="    Base Url" default="http://moviefarsi3.com" visible="eq(-1,true)"/>
+         <setting id="MovieFarsi-base_url" type="text" label="    Base Url" default="http://moviefarsi.com" visible="eq(-1,true)"/>
          <setting id="MovieFarsi-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
          <setting id="MovieFarsi_last_results" type="number" default="0" visible="false"/>
          <setting id="MovieHut-enable" type="bool" label="MovieHut Enabled" default="true" visible="true"/>
@@ -412,6 +412,10 @@
          <setting id="Putlocker-base_url" type="text" label="    Base Url" default="http://putlocker.is" visible="eq(-1,true)"/>
          <setting id="Putlocker-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
          <setting id="Putlocker_last_results" type="number" default="0" visible="false"/>
+         <setting id="PutMV-enable" type="bool" label="PutMV Enabled" default="true" visible="true"/>
+         <setting id="PutMV-base_url" type="text" label="    Base Url" default="http://putmv.com" visible="eq(-1,true)"/>
+         <setting id="PutMV-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
+         <setting id="PutMV_last_results" type="number" default="0" visible="false"/>
          <setting id="Rainierland-enable" type="bool" label="Rainierland Enabled" default="true" visible="true"/>
          <setting id="Rainierland-base_url" type="text" label="    Base Url" default="http://rainierland.com" visible="eq(-1,true)"/>
          <setting id="Rainierland-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
@@ -472,8 +476,12 @@
          <setting id="TVRelease.Net_last_results" type="number" default="0" visible="false"/>
          <setting id="TVRelease.Net-filter" type="slider" range="0,180" option="int" label="     Filter results older than (0=No Filter) (days)" default="30" visible="eq(-4,true)"/>
          <setting id="TVRelease.Net-select" type="enum" label="     Automatically Select" lvalues="30636|30637" default="0" visible="eq(-5,true)"/>
+         <setting id="TwoMovies.us-enable" type="bool" label="TwoMovies.us Enabled" default="true" visible="true"/>
+         <setting id="TwoMovies.us-base_url" type="text" label="    Base Url" default="http://twomovies.us" visible="eq(-1,true)"/>
+         <setting id="TwoMovies.us-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
+         <setting id="TwoMovies.us_last_results" type="number" default="0" visible="false"/>
          <setting id="UFlix.org-enable" type="bool" label="UFlix.org Enabled" default="true" visible="true"/>
-         <setting id="UFlix.org-base_url" type="text" label="    Base Url" default="http://vizz.is" visible="eq(-1,true)"/>
+         <setting id="UFlix.org-base_url" type="text" label="    Base Url" default="http://uflix.org" visible="eq(-1,true)"/>
          <setting id="UFlix.org-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
          <setting id="UFlix.org_last_results" type="number" default="0" visible="false"/>
          <setting id="vidics.ch-enable" type="bool" label="vidics.ch Enabled" default="true" visible="true"/>
@@ -521,13 +529,13 @@
          <setting id="xmovies8.v2-base_url" type="text" label="    Base Url" default="http://xmovies8.tv" visible="eq(-1,true)"/>
          <setting id="xmovies8.v2-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
          <setting id="xmovies8.v2_last_results" type="number" default="0" visible="false"/>
+    </category>
+
+    <category label="Scrapers 5">
          <setting id="yify-streaming-enable" type="bool" label="yify-streaming Enabled" default="true" visible="true"/>
          <setting id="yify-streaming-base_url" type="text" label="    Base Url" default="http://yify-streaming.com" visible="eq(-1,true)"/>
          <setting id="yify-streaming-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
          <setting id="yify-streaming_last_results" type="number" default="0" visible="false"/>
-    </category>
-
-    <category label="Scrapers 5">
          <setting id="yshows-enable" type="bool" label="yshows Enabled" default="true" visible="true"/>
          <setting id="yshows-base_url" type="text" label="    Base Url" default="http://yshow.me" visible="eq(-1,true)"/>
          <setting id="yshows-sub_check" type="bool" label="    Include in Page Existence checks?" default="true" visible="eq(-2,true)"/>
