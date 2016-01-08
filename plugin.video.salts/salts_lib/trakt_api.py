@@ -28,6 +28,8 @@ from db_utils import DB_Connection
 from constants import TRAKT_SECTIONS
 from constants import TEMP_ERRORS
 from constants import SECTIONS
+from constants import TRAKT_LIST_SORT
+from constants import TRAKT_SORT_DIR
 
 class TraktError(Exception):
     pass
@@ -79,7 +81,7 @@ class Trakt_API():
         else:
             cache_limit = 1  # cache other user's list for one hour
 
-        url = '/users/%s/lists/%s/items' % (username, slug)
+        url = '/users/%s/lists/%s/items' % (username.strip(), slug)
         params = {'extended': 'full,images'}
         list_data = self.__call_trakt(url, params=params, auth=auth, cache_limit=cache_limit, cached=cached)
         return [item[item['type']] for item in list_data if item['type'] == TRAKT_SECTIONS[section][:-1]]
@@ -92,12 +94,12 @@ class Trakt_API():
 
     def get_list_header(self, slug, username=None, auth=True):
         if not username: username = 'me'
-        url = '/users/%s/lists/%s' % (username, slug)
+        url = '/users/%s/lists/%s' % (username.strip(), slug)
         return self.__call_trakt(url, auth=auth)
 
     def get_lists(self, username=None):
         if not username: username = 'me'
-        url = '/users/%s/lists' % (username)
+        url = '/users/%s/lists' % (username.strip())
         return self.__call_trakt(url, cache_limit=0)
 
     def get_liked_lists(self, cached=True):
@@ -281,7 +283,7 @@ class Trakt_API():
     
     def get_user_profile(self, username=None, cached=True):
         if username is None: username = 'me'
-        url = '/users/%s' % (username)
+        url = '/users/%s' % (username.strip())
         return self.__call_trakt(url, cached=cached)
         
     def get_bookmarks(self, section=None, full=False):
@@ -364,7 +366,52 @@ class Trakt_API():
             data[TRAKT_SECTIONS[section]].append(ids)
         return data
 
+    def __title_key(self, title):
+        temp = title.upper()
+        if temp.startswith('THE '):
+            offset = 4
+        elif temp.startswith('A '):
+            offset = 2
+        elif temp.startswith('AN '):
+            offset = 3
+        else:
+            offset = 0
+        return title[offset:]
+    
+    def __released_key(self, item):
+        if 'released' in item:
+            return item['released']
+        elif 'first_aired' in item:
+            return item['first_aired']
+        else:
+            return 0
+    
+    def __sort_list(self, sort_key, sort_direction, list_data):
+        log_utils.log('Sorting List: %s - %s' % (sort_key, sort_direction), log_utils.LOGDEBUG)
+        # log_utils.log(json.dumps(list_data))
+        reverse = False if sort_direction == TRAKT_SORT_DIR.ASCENDING else True
+        if sort_key == TRAKT_LIST_SORT.RANK:
+            return sorted(list_data, key=lambda x: x['rank'], reverse=reverse)
+        elif sort_key == TRAKT_LIST_SORT.RECENTLY_ADDED:
+            return sorted(list_data, key=lambda x: x['listed_at'], reverse=reverse)
+        elif sort_key == TRAKT_LIST_SORT.TITLE:
+            return sorted(list_data, key=lambda x: self.__title_key(x[x['type']]['title']), reverse=reverse)
+        elif sort_key == TRAKT_LIST_SORT.RELEASE_DATE:
+            return sorted(list_data, key=lambda x: self.__released_key(x[x['type']]), reverse=reverse)
+        elif sort_key == TRAKT_LIST_SORT.RUNTIME:
+            return sorted(list_data, key=lambda x: x[x['type']]['runtime'], reverse=reverse)
+        elif sort_key == TRAKT_LIST_SORT.POPULARITY:
+            return sorted(list_data, key=lambda x: x[x['type']]['votes'], reverse=reverse)
+        elif sort_key == TRAKT_LIST_SORT.PERCENTAGE:
+            return sorted(list_data, key=lambda x: x[x['type']]['rating'], reverse=reverse)
+        elif sort_key == TRAKT_LIST_SORT.VOTES:
+            return sorted(list_data, key=lambda x: x[x['type']]['votes'], reverse=reverse)
+        else:
+            log_utils.log('Unrecognized list sort key: %s - %s' % (sort_key, sort_direction), log_utils.LOGWARNING)
+            return list_data
+    
     def __call_trakt(self, url, method=None, data=None, params=None, auth=True, cache_limit=.25, cached=True):
+        res_headers = {}
         if not cached: cache_limit = 0
         db_cache_limit = cache_limit if cache_limit > 8 else 8
         json_data = json.dumps(data) if data else None
@@ -385,12 +432,13 @@ class Trakt_API():
                     log_utils.log('Trakt Call: %s, header: %s, data: %s cache_limit: %s cached: %s' % (url, headers, data, cache_limit, cached), log_utils.LOGDEBUG)
                     request = urllib2.Request(url, data=json_data, headers=headers)
                     if method is not None: request.get_method = lambda: method.upper()
-                    f = urllib2.urlopen(request, timeout=self.timeout)
+                    response = urllib2.urlopen(request, timeout=self.timeout)
                     result = ''
                     while True:
-                        data = f.read()
+                        data = response.read()
                         if not data: break
                         result += data
+                    res_headers = dict(response.info().items())
 
                     db_connection.cache_url(url, result, json_data)
                     break
@@ -443,11 +491,13 @@ class Trakt_API():
                     raise
 
         try:
-            response = json.loads(result)
+            js_data = json.loads(result)
+            if 'x-sort-by' in res_headers and 'x-sort-how' in res_headers:
+                js_data = self.__sort_list(res_headers['x-sort-by'], res_headers['x-sort-how'], js_data)
         except ValueError:
-            response = ''
+            js_data = ''
             if result:
-                log_utils.log('Invalid JSON Trakt API Response: %s - |%s|' % (url, result), log_utils.LOGERROR)
+                log_utils.log('Invalid JSON Trakt API Response: %s - |%s|' % (url, js_data), log_utils.LOGERROR)
 
         # log_utils.log('Trakt Response: %s' % (response), xbmc.LOGDEBUG)
-        return response
+        return js_data

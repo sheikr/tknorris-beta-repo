@@ -271,6 +271,7 @@ class Scraper(object):
             self.cj = self._set_cookies(base_url, cookies)
             request = urllib2.Request(url, data=data)
             request.add_header('User-Agent', self._get_ua())
+            request.add_header('Accept', '*/*')
             request.add_unredirected_header('Host', request.get_host())
             request.add_unredirected_header('Referer', referer)
             for key in headers: request.add_header(key, headers[key])
@@ -682,58 +683,46 @@ class Scraper(object):
             match = re.search('return\s+(\[\[.*?)\s*}}', html, re.DOTALL)
             if match:
                 try:
-                    js = json.loads(match.group(1))
-                except ValueError:
-                    log_utils.log('Invalid JSON returned for: %s' % (link), log_utils.LOGWARNING)
-                else:
-                    try:
-                        for item in js[1]:
-                            vid_match = False
-                            for e in item:
-                                if e == vid_id:
-                                    vid_match = True
+                    js = self._parse_json(match.group(1), link)
+                    for item in js[1]:
+                        vid_match = False
+                        for e in item:
+                            if e == vid_id:
+                                vid_match = True
 
-                                if vid_match:
-                                        if isinstance(e, dict):
-                                            for key in e:
-                                                for item2 in e[key]:
-                                                    try:
-                                                        for item3 in item2:
-                                                            for item4 in item3:
-                                                                if isinstance(item4, basestring):
-                                                                    for match in re.finditer('url=([^&]+)', item4):
-                                                                        sources.append(urllib.unquote(match.group(1)))
-                                                    except Exception as e:
-                                                        log_utils.log('Exception during google plus parse: %s' % (e), log_utils.LOGDEBUG)
-                    except Exception as e:
-                        log_utils.log('Google Plus Parse failure: %s - %s' % (link, e), log_utils.LOGWARNING)
+                            if vid_match:
+                                    if isinstance(e, dict):
+                                        for key in e:
+                                            for item2 in e[key]:
+                                                try:
+                                                    for item3 in item2:
+                                                        for item4 in item3:
+                                                            if isinstance(item4, basestring):
+                                                                for match in re.finditer('url=([^&]+)', item4):
+                                                                    sources.append(urllib.unquote(match.group(1)))
+                                                except Exception as e:
+                                                    log_utils.log('Exception during google plus parse: %s' % (e), log_utils.LOGDEBUG)
+                except Exception as e:
+                    log_utils.log('Google Plus Parse failure: %s - %s' % (link, e), log_utils.LOGWARNING)
         else:
             i = link.rfind('#')
             if i > -1:
                 link_id = link[i + 1:]
                 match = re.search('feedPreload:\s*(.*}]}})},', html, re.DOTALL)
                 if match:
-                    try:
-                        js = json.loads(match.group(1))
-                    except ValueError:
-                        log_utils.log('Invalid JSON returned for: %s' % (link), log_utils.LOGWARNING)
-                    else:
-                        for item in js['feed']['entry']:
-                            if item['gphoto$id'] == link_id:
-                                for media in item['media']['content']:
-                                    if media['type'].startswith('video'):
-                                        sources.append(media['url'].replace('%3D', '='))
+                    js = self._parse_json(match.group(1), link)
+                    for item in js['feed']['entry']:
+                        if item['gphoto$id'] == link_id:
+                            for media in item['media']['content']:
+                                if media['type'].startswith('video'):
+                                    sources.append(media['url'].replace('%3D', '='))
             else:
                 match = re.search('preload\'?:\s*(.*}})},', html, re.DOTALL)
                 if match:
-                    try:
-                        js = json.loads(match.group(1))
-                    except ValueError:
-                        log_utils.log('Invalid JSON returned for: %s' % (link), log_utils.LOGWARNING)
-                    else:
-                        for media in js['feed']['media']['content']:
-                            if media['type'].startswith('video'):
-                                sources.append(media['url'].replace('%3D', '='))
+                    js = self._parse_json(match.group(1), link)
+                    for media in js['feed']['media']['content']:
+                        if media['type'].startswith('video'):
+                            sources.append(media['url'].replace('%3D', '='))
 
         return sources
 
@@ -817,3 +806,14 @@ class Scraper(object):
         if self.db_connection is None or self.worker_id != worker_id:
             self.db_connection = DB_Connection()
             self.worker_id = worker_id
+    
+    def _parse_json(self, html, url=''):
+        if html:
+            try:
+                return json.loads(html)
+            except ValueError:
+                log_utils.log('Invalid JSON returned: %s: %s' % (html, url), log_utils.LOGWARNING)
+                return {}
+        else:
+            log_utils.log('Empty JSON object: %s: %s' % (html, url), log_utils.LOGDEBUG)
+            return {}
