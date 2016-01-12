@@ -50,7 +50,11 @@ db_connection = DB_Connection()
 
 @url_dispatcher.register(MODES.MAIN)
 def main_menu():
-    db_connection.init_database()
+    if TRIG_DB_UPG:
+        db_version = db_connection.get_db_version()
+    else:
+        db_version = kodi.get_version()
+    db_connection.init_database(db_version)
     if kodi.get_setting('auto-disable') != DISABLE_SETTINGS.OFF:
         utils.do_disable_check()
 
@@ -740,7 +744,7 @@ def get_progress(cache_override=False):
             else:
                 trakt_id = str(progress['trakt'])
                 show = shows[trakt_id]
-                if show['status'].upper() == 'ENDED' and progress['completed'] == progress['aired'] and trakt_id not in filter_list and trakt_id not in force_list:
+                if show['status'] and show['status'].upper() == 'ENDED' and progress['completed'] == progress['aired'] and trakt_id not in filter_list and trakt_id not in force_list:
                     log_utils.log('Adding %s (%s) (%s - %s) to MNE exclusion list' % (trakt_id, show['title'], progress['completed'], progress['aired']), log_utils.LOGDEBUG)
                     manage_progress_cache(ACTIONS.ADD, progress['trakt'])
 
