@@ -27,16 +27,17 @@ import os
 import re
 
 addon = xbmcaddon.Addon()
-ICON_PATH = os.path.join(addon.getAddonInfo('path'), 'icon.png')
-
 get_setting = addon.getSetting
 show_settings = addon.openSettings
 
 def get_path():
-    return addon.getAddonInfo('path')
+    return addon.getAddonInfo('path').decode('utf-8')
 
 def get_profile():
-    return addon.getAddonInfo('profile')
+    return addon.getAddonInfo('profile').decode('utf-8')
+
+def translate_path(path):
+    return xbmc.translatePath(path).decode('utf-8')
 
 def set_setting(id, value):
     if not isinstance(value, basestring): value = str(value)
@@ -100,14 +101,15 @@ def parse_query(query):
 def notify(header=None, msg='', duration=2000, sound=None):
     if header is None: header = get_name()
     if sound is None: sound = get_setting('mute_notifications') == 'false'
+    icon_path = os.path.join(get_path(), 'icon.png')
     try:
-        xbmcgui.Dialog().notification(header, msg, ICON_PATH, duration, sound)
+        xbmcgui.Dialog().notification(header, msg, icon_path, duration, sound)
     except:
-        builtin = "XBMC.Notification(%s,%s, %s, %s)" % (header, msg, duration, ICON_PATH)
+        builtin = "XBMC.Notification(%s,%s, %s, %s)" % (header, msg, duration, icon_path)
         xbmc.executebuiltin(builtin)
     
 def get_current_view():
-    skinPath = xbmc.translatePath('special://skin/')
+    skinPath = translate_path('special://skin/')
     xml = os.path.join(skinPath, 'addon.xml')
     f = xbmcvfs.File(xml)
     read = f.read()

@@ -18,7 +18,6 @@
 import os
 import time
 import csv
-import xbmc
 import xbmcvfs
 import xbmcgui
 import log_utils
@@ -28,10 +27,14 @@ from trans_utils import i18n
 def enum(**enums):
     return type('Enum', (), enums)
 
+class DatabaseRecoveryError(Exception):
+    pass
+
 DB_TYPES = enum(MYSQL='mysql', SQLITE='sqlite')
 CSV_MARKERS = enum(REL_URL='***REL_URL***', OTHER_LISTS='***OTHER_LISTS***', SAVED_SEARCHES='***SAVED_SEARCHES***', BOOKMARKS='***BOOKMARKS***')
 MAX_TRIES = 5
 MYSQL_DATA_SIZE = 512
+MYSQL_URL_SIZE = 255
 
 class DB_Connection():
     def __init__(self):
@@ -44,7 +47,6 @@ class DB_Connection():
         self.address = kodi.get_setting('db_address')
         self.db = None
         self.progress = None
-        self.__recovery = False
 
         if kodi.get_setting('use_remote_db') == 'true':
             if self.address is not None and self.username is not None and self.password is not None and self.dbname is not None:
@@ -62,7 +64,7 @@ class DB_Connection():
             from sqlite3 import DatabaseError as DatabaseError
             log_utils.log('Loading sqlite3 as DB engine', log_utils.LOGDEBUG)
             self.db_type = DB_TYPES.SQLITE
-            db_dir = xbmc.translatePath("special://database")
+            db_dir = kodi.translate_path("special://database")
             self.db_path = os.path.join(db_dir, 'saltscache.db')
         self.__connect_to_db()
 
@@ -102,6 +104,8 @@ class DB_Connection():
     def cache_url(self, url, body, data=''):
         if data is None: data = ''
         # truncate data if running mysql and greater than col size
+        if self.db_type == DB_TYPES.MYSQL and len(url) > MYSQL_URL_SIZE:
+            url = url[:MYSQL_URL_SIZE]
         if self.db_type == DB_TYPES.MYSQL and len(data) > MYSQL_DATA_SIZE:
             data = data[:MYSQL_DATA_SIZE]
         now = time.time()
@@ -227,7 +231,7 @@ class DB_Connection():
         self.set_setting(setting, str(cur_value + 1))
 
     def export_from_db(self, full_path):
-        temp_path = os.path.join(xbmc.translatePath("special://profile"), 'temp_export_%s.csv' % (int(time.time())))
+        temp_path = os.path.join(kodi.translate_path("special://profile"), 'temp_export_%s.csv' % (int(time.time())))
         with open(temp_path, 'w') as f:
             writer = csv.writer(f)
             f.write('***VERSION: %s***\n' % self.get_db_version())
@@ -268,7 +272,7 @@ class DB_Connection():
         return l
         
     def import_into_db(self, full_path):
-        temp_path = os.path.join(xbmc.translatePath("special://profile"), 'temp_import_%s.csv' % (int(time.time())))
+        temp_path = os.path.join(kodi.translate_path("special://profile"), 'temp_import_%s.csv' % (int(time.time())))
         log_utils.log('Copying import file from: |%s| to |%s|' % (full_path, temp_path), log_utils.LOGDEBUG)
         if not xbmcvfs.copy(full_path, temp_path):
             raise Exception('Import: Copy from |%s| to |%s| failed' % (full_path, temp_path))
@@ -342,7 +346,7 @@ class DB_Connection():
     
             log_utils.log('Building SALTS Database', log_utils.LOGDEBUG)
             if self.db_type == DB_TYPES.MYSQL:
-                self.__execute('CREATE TABLE IF NOT EXISTS url_cache (url VARBINARY(255) NOT NULL, data VARBINARY(%s) NOT NULL, response MEDIUMBLOB, timestamp TEXT, PRIMARY KEY(url, data))' % (MYSQL_DATA_SIZE))
+                self.__execute('CREATE TABLE IF NOT EXISTS url_cache (url VARBINARY(%s) NOT NULL, data VARBINARY(%s) NOT NULL, response MEDIUMBLOB, timestamp TEXT, PRIMARY KEY(url, data))' % (MYSQL_URL_SIZE, MYSQL_DATA_SIZE))
                 self.__execute('CREATE TABLE IF NOT EXISTS db_info (setting VARCHAR(255) NOT NULL, value TEXT, PRIMARY KEY(setting))')
                 self.__execute('CREATE TABLE IF NOT EXISTS rel_url \
                 (video_type VARCHAR(15) NOT NULL, title VARCHAR(255) NOT NULL, year VARCHAR(4) NOT NULL, season VARCHAR(5) NOT NULL, episode VARCHAR(5) NOT NULL, source VARCHAR(50) NOT NULL, rel_url VARCHAR(255), \
@@ -414,6 +418,23 @@ class DB_Connection():
 
         return version
 
+    def attempt_db_recovery(self):
+        header = i18n('recovery_header')
+        if xbmcgui.Dialog().yesno(header, i18n('rec_mig_1'), i18n('rec_mig_2')):
+            try: self.init_database('0.0.0')
+            except Exception as e:
+                log_utils.log('DB Migration Failed: %s' % (e), log_utils.LOGWARNING)
+                if self.db_type == DB_TYPES.SQLITE:
+                    if xbmcgui.Dialog().yesno(header, i18n('rec_reset_1'), i18n('rec_reset_2'), i18n('rec_reset_3')):
+                        try: self.reset_db()
+                        except Exception as e:
+                            log_utils.log('Reset Failed: %s' % (e), log_utils.LOGWARNING)
+                            try: msg = i18n('reset_failed') % (e)
+                            except: msg = 'Reset Failed: %s' % (e)
+                        else:
+                            msg = i18n('db_reset_success')
+                        kodi.notify(msg=msg, duration=5000)
+        
     def __execute(self, sql, params=None):
         if params is None:
             params = []
@@ -434,38 +455,19 @@ class DB_Connection():
             except OperationalError as e:
                 if tries < MAX_TRIES:
                     tries += 1
-                    log_utils.log('Retrying (%s/%s) SQL: %s' % (tries, MAX_TRIES, sql), log_utils.LOGWARNING)
+                    log_utils.log('Retrying (%s/%s) SQL: %s Error: %s' % (tries, MAX_TRIES, sql, e), log_utils.LOGWARNING)
                     self.db = None
                     self.__connect_to_db()
-                elif any(s for s in ['no such table', 'no such column'] if s in str(e)) and not self.__recovery:
-                    self.__attempt_db_recovery()
+                elif any(s for s in ['no such table', 'no such column'] if s in str(e)):
+                    raise DatabaseRecoveryError(e)
                 else:
                     raise
-            except DatabaseError:
-                if not self.__recovery:
-                    self.__attempt_db_recovery()
-                else:
-                    raise
+            except DatabaseError as e:
+                raise DatabaseRecoveryError(e)
 
-    def __attempt_db_recovery(self):
-        self.__recovery = True
-        header = i18n('recovery_header')
-        if xbmcgui.Dialog().yesno(header, i18n('rec_mig_1'), i18n('rec_mig_2')):
-            try: self.init_database('0.0.0')
-            except Exception as e:
-                log_utils.log('DB Migration Failed: %s' % (e), log_utils.LOGWARNING)
-                if xbmcgui.Dialog().yesno(header, i18n('rec_reset_1'), i18n('rec_reset_2'), i18n('rec_reset_3')):
-                    try: result = self.reset_db()
-                    except Exception as e:
-                        log_utils.log('Reset Failed: %s' % (e), log_utils.LOGWARNING)
-                        kodi.notify(msg=i18n('reset_failed') % e, duration=5000)
-                    else:
-                        if result:
-                            kodi.notify(msg=i18n('db_reset_success'))
-        
     # purpose is to save the current db with an export, drop the db, recreate it, then connect to it
     def __prep_for_reinit(self):
-        self.mig_path = os.path.join(xbmc.translatePath("special://database"), 'mig_export_%s.csv' % (int(time.time())))
+        self.mig_path = os.path.join(kodi.translate_path("special://database"), 'mig_export_%s.csv' % (int(time.time())))
         log_utils.log('Backing up DB to %s' % (self.mig_path), log_utils.LOGDEBUG)
         self.export_from_db(self.mig_path)
         log_utils.log('Backup export of DB created at %s' % (self.mig_path))
