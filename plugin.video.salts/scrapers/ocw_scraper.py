@@ -27,7 +27,7 @@ from salts_lib.constants import FORCE_NO_MATCH
 
 BASE_URL = 'http://oneclickwatch.ws'
 
-class OneClickWatch_Scraper(scraper.Scraper):
+class OCW_Scraper(scraper.Scraper):
     base_url = BASE_URL
 
     def __init__(self, timeout=scraper.DEFAULT_TIMEOUT):
@@ -40,7 +40,7 @@ class OneClickWatch_Scraper(scraper.Scraper):
 
     @classmethod
     def get_name(cls):
-        return 'OneClickWatch'
+        return 'OCW'
 
     def resolve_link(self, link):
         return link
@@ -76,7 +76,7 @@ class OneClickWatch_Scraper(scraper.Scraper):
 
     @classmethod
     def get_settings(cls):
-        settings = super(OneClickWatch_Scraper, cls).get_settings()
+        settings = super(OCW_Scraper, cls).get_settings()
         settings = cls._disable_sub_check(settings)
         name = cls.get_name()
         settings.append('         <setting id="%s-filter" type="slider" range="0,180" option="int" label="     %s" default="30" visible="eq(-4,true)"/>' % (name, i18n('filter_results_days')))
@@ -92,9 +92,9 @@ class OneClickWatch_Scraper(scraper.Scraper):
         return self._blog_proc_results(html, pattern, date_format, video_type, title, year)
 
     def _http_get(self, url, headers=None, cache_limit=8):
-        html = super(OneClickWatch_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, headers=headers, cache_limit=cache_limit)
+        html = super(OCW_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, headers=headers, cache_limit=cache_limit)
         cookie = self._get_sucuri_cookie(html)
         if cookie:
             log_utils.log('Setting OCW cookie: %s' % (cookie), log_utils.LOGDEBUG)
-            html = super(OneClickWatch_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, cookies=cookie, headers=headers, cache_limit=0)
+            html = super(OCW_Scraper, self)._cached_http_get(url, self.base_url, self.timeout, cookies=cookie, headers=headers, cache_limit=0)
         return html
